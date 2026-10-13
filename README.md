@@ -5,7 +5,7 @@
 - 要件定義書: [docs/requirements.md](docs/requirements.md)
 - セットアップ（Mac）: [docs/setup.md](docs/setup.md)
 - 画面イメージ: [docs/images/concept-v1.png](docs/images/concept-v1.png)
-- 対象: iOS 27 以降（SwiftUI / WidgetKit / EventKit / SwiftData）
+- 対象: iOS 26 以降（SwiftUI / WidgetKit / EventKit / SwiftData）
 
 ## 構成
 

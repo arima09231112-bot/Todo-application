@@ -2,7 +2,7 @@
 
 ## 1. 事前準備
 
-- Xcode（iOS 27 SDK 対応版）
+- Xcode 26 以降（iOS 26 SDK。Mac の Xcode が 26.5 のため、対応OSを 27 から 26 に下げた）
 - XcodeGen: `brew install xcodegen`
 
 ## 2. 自分用の設定を変える（初回のみ）

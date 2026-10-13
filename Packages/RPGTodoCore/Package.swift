@@ -5,7 +5,7 @@ import PackageDescription
 // Linux でも `swift test` で検証できるよう、Apple 専用フレームワークを import しないこと。
 let package = Package(
     name: "RPGTodoCore",
-    platforms: [.iOS("27.0")],
+    platforms: [.iOS("26.0")],
     products: [
         .library(name: "RPGTodoCore", targets: ["RPGTodoCore"]),
     ],
