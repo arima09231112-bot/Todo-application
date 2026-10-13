@@ -5,13 +5,15 @@
 
 1. 背景の除去（画像の外周から背景色を塗りつぶし判定。キャラ内部の白は残す）
 2. キャラごとの切り出し（1枚に複数キャラが並んでいても自動で分割）
-3. 指定サイズ（既定 32x32）への縮小と減色（既定 16 色）
-4. 濃色の輪郭線の付与（小さく表示しても背景から浮かせる）
+3. 元画像の「1ドットの大きさ」を自動検出し、本来のドット数に戻して減色（既定 16 色）、48x48 のキャンバスに配置
+4. 濃色1色の輪郭線の付与（小さく表示しても背景から浮かせる）
 5. 歩行アニメーション 4 フレームの自動生成（上下の揺れ＋足の踏み出し）
+   ※ 歩行4ポーズを描いた画像なら --walk-frames でそのまま使う
 6. 確認用のプレビュー（拡大 PNG と歩行 GIF）
 
 使い方:
     python3 build_sprites.py INPUT.png --names hero,swordsman,mage --out OUT_DIR
+    python3 build_sprites.py WALK.png --names superstar --walk-frames --out OUT_DIR
 
 必要ライブラリ: Pillow, numpy
 """
@@ -96,46 +98,132 @@ def merge_overlapping_columns(boxes: list[tuple[int, int, int, int]]) -> list[tu
     return [tuple(m) for m in merged]
 
 
-def to_sprite(rgba: Image.Image, size: int, body: int, colors: int) -> Image.Image:
-    """切り出したキャラを size x size のキャンバスに、高さ body ピクセルで収める。"""
-    w, h = rgba.size
-    scale = body / max(w, h)
-    small = rgba.resize((max(1, round(w * scale)), max(1, round(h * scale))), Image.BOX)
+def downscale(images: list[Image.Image], scale: float, colors: int) -> list[np.ndarray]:
+    """複数の画像を共通パレットで減色してから、ブロックごとの最頻色で縮小する。
 
-    arr = np.array(small)
-    alpha = arr[:, :, 3] >= 128
-    rgb = Image.fromarray(arr[:, :, :3]).quantize(colors=colors, method=Image.Quantize.MEDIANCUT)
-    rgb = np.array(rgb.convert("RGB"))
-    out = np.zeros((*alpha.shape, 4), dtype=np.uint8)
-    out[alpha, :3] = rgb[alpha]
-    out[alpha, 3] = 255
+    平均で縮小すると輪郭の黒と服の色が混ざって濁るため、先に元解像度で減色し、
+    縮小後の各ピクセルには対応するブロック内で最も多い色をそのまま採用する。
+    パレットは全画像で共通にし、フレーム間で色がちらつかないようにする。
+    """
+    # 背景が色枠を奪わないよう、前景のピクセルだけでパレットを作る
+    fg_pixels = np.concatenate([np.array(im)[np.array(im)[:, :, 3] >= 128][:, :3] for im in images])
+    sample = Image.fromarray(fg_pixels.reshape(1, -1, 3).astype(np.uint8))
+    palette_image = sample.quantize(colors=colors, method=Image.Quantize.MEDIANCUT)
+    palette = np.array(palette_image.getpalette()[: colors * 3], dtype=np.uint8).reshape(-1, 3)
 
+    results = []
+    for im in images:
+        arr = np.array(im)
+        h, w = arr.shape[:2]
+        alpha = arr[:, :, 3] >= 128
+        indices = np.array(im.convert("RGB").quantize(palette=palette_image, dither=Image.Dither.NONE)).astype(int)
+        indices[~alpha] = -1
+        tw, th = max(1, round(w * scale)), max(1, round(h * scale))
+        out = np.zeros((th, tw, 4), dtype=np.uint8)
+        ys = np.linspace(0, h, th + 1).astype(int)
+        xs = np.linspace(0, w, tw + 1).astype(int)
+        for ty in range(th):
+            for tx in range(tw):
+                y0, y1, x0, x1 = ys[ty], ys[ty + 1], xs[tx], xs[tx + 1]
+                block = indices[y0:y1, x0:x1].ravel()
+                filled = block[block >= 0]
+                if filled.size * 2 < block.size:
+                    continue  # 半分以上が透明なら透明
+                # 色はブロック中心付近で判定する（隣のドットとの境目のにじみを拾わない）
+                my, mx = (y1 - y0) // 4, (x1 - x0) // 4
+                core = indices[y0 + my : y1 - my, x0 + mx : x1 - mx].ravel()
+                core = core[core >= 0]
+                color = np.bincount(core if core.size else filled, minlength=len(palette)).argmax()
+                out[ty, tx, :3] = palette[color]
+                out[ty, tx, 3] = 255
+        results.append(out)
+    return results
+
+
+def detect_cell_size(images: list[Image.Image], low: float = 3.0, high: float = 24.0) -> float:
+    """「ドット絵風」画像の 1ドットが何ピクセル四方で描かれているかを推定する。
+
+    色の変わり目（縦横の差分）が周期的に並ぶ間隔を、周期ごとの位相のそろい具合で評価する。
+    """
+    signal = []
+    for im in images:
+        arr = np.array(im.convert("RGB")).astype(float)
+        signal.append(np.abs(np.diff(arr, axis=1)).sum(axis=(0, 2)))
+        signal.append(np.abs(np.diff(arr, axis=0)).sum(axis=(1, 2)))
+    best_score, best_cell = -1.0, low
+    for cell in np.arange(low, high, 0.05):
+        score = 0.0
+        for sig in signal:
+            phase = np.exp(2j * np.pi * np.arange(len(sig)) / cell)
+            score += abs((sig * phase).sum()) / max(sig.sum(), 1e-9)
+        if score > best_score:
+            best_score, best_cell = score, cell
+    return float(best_cell)
+
+
+def choose_scale(crops: list[Image.Image], size: int, body: int, mode: str) -> float:
+    """縮小率を決める。grid: 元画像のドットを1ピクセルに戻す / fit: 最大 body ピクセルに収める。"""
+    longest = max(max(c.size) for c in crops)
+    fit = body / longest
+    if mode == "fit":
+        return fit
+    cell = detect_cell_size(crops)
+    scale = 1 / cell
+    if longest * scale > size - 2:
+        print(f"  1ドット≒{cell:.2f}px と検出。元のドット数ではキャンバスに収まらないため縮小します（fit）")
+        return fit
+    if longest * scale < size / 2:
+        # 元画像が小さすぎる・ドットの格子が読み取れない場合は、検出結果を信用しない
+        print(f"  ドットの格子を検出できませんでした（推定 {cell:.2f}px）。縮小して取り込みます（fit）")
+        return fit
+    print(f"  1ドット≒{cell:.2f}px と検出。元のドット数のまま取り込みます（grid）")
+    return scale
+
+
+def place(pixels: np.ndarray, size: int) -> Image.Image:
+    """キャンバス中央・足元を下端から 1px 上（輪郭線のぶん）に配置し、輪郭を付ける。"""
     canvas = Image.new("RGBA", (size, size), TRANSPARENT)
-    sw, sh = small.size
-    # 足元をキャンバスの下端から 1px 上にそろえる（輪郭線のぶん）
-    canvas.paste(Image.fromarray(out), ((size - sw) // 2, size - sh - 1))
+    sh, sw = pixels.shape[:2]
+    canvas.paste(Image.fromarray(pixels), ((size - sw) // 2, size - sh - 1))
     return add_outline(canvas)
 
 
+def to_sprite(rgba: Image.Image, size: int, body: int, colors: int, mode: str) -> Image.Image:
+    """切り出したキャラを size x size のキャンバスに配置したスプライトにする。"""
+    return place(downscale([rgba], choose_scale([rgba], size, body, mode), colors - 1)[0], size)
+
+
+def to_walk_sprites(
+    cleaned: Image.Image, boxes: list[tuple[int, int, int, int]], size: int, body: int, colors: int, mode: str
+) -> list[Image.Image]:
+    """1体のキャラの歩行ポーズが横に並んだ画像から、フレームごとのスプライトを作る。
+
+    全フレームで縮小率・パレット・縦の切り出し範囲を共通にし、
+    フレーム間でキャラの大きさや足元の高さ（上下の揺れ）が保たれるようにする。
+    """
+    top = min(b[1] for b in boxes)
+    bottom = max(b[3] for b in boxes)
+    crops = [cleaned.crop((x0, top, x1, bottom)) for x0, _, x1, _ in boxes]
+    return [place(px, size) for px in downscale(crops, choose_scale(crops, size, body, mode), colors - 1)]
+
+
 def add_outline(sprite: Image.Image) -> Image.Image:
-    """キャラの外側 1px に、隣接する色を暗くした輪郭を付ける。"""
+    """キャラの外側 1px に輪郭を付ける。輪郭は1色（キャラ内で最も暗い色をさらに暗くした色）。"""
     arr = np.array(sprite)
     opaque = arr[:, :, 3] > 0
+    colors = arr[opaque][:, :3].astype(int)
+    darkest = colors[colors.sum(axis=1).argmin()]
+    outline = (darkest * 0.6).astype(np.uint8)
+
+    grown = opaque.copy()
+    grown[1:] |= opaque[:-1]
+    grown[:-1] |= opaque[1:]
+    grown[:, 1:] |= opaque[:, :-1]
+    grown[:, :-1] |= opaque[:, 1:]
+    ring = grown & ~opaque
     out = arr.copy()
-    h, w = opaque.shape
-    for y in range(h):
-        for x in range(w):
-            if opaque[y, x]:
-                continue
-            neighbors = [
-                arr[ny, nx, :3]
-                for ny, nx in ((y + 1, x), (y - 1, x), (y, x + 1), (y, x - 1))
-                if 0 <= ny < h and 0 <= nx < w and opaque[ny, nx]
-            ]
-            if neighbors:
-                dark = (np.mean(neighbors, axis=0) * 0.25).astype(np.uint8)
-                out[y, x, :3] = dark
-                out[y, x, 3] = 255
+    out[ring, :3] = outline
+    out[ring, 3] = 255
     return Image.fromarray(out)
 
 
@@ -211,11 +299,22 @@ def main() -> None:
     parser.add_argument("input", type=Path)
     parser.add_argument("--names", required=True, help="左から順のキャラID（カンマ区切り）")
     parser.add_argument("--out", type=Path, required=True)
-    parser.add_argument("--size", type=int, default=32, help="スプライトのキャンバスサイズ")
-    parser.add_argument("--body", type=int, default=30, help="キャラ本体の最大の縦横ピクセル数")
-    parser.add_argument("--colors", type=int, default=16)
+    parser.add_argument("--size", type=int, default=48, help="スプライトのキャンバスサイズ")
+    parser.add_argument(
+        "--scale-mode",
+        choices=["grid", "fit"],
+        default="grid",
+        help="grid: 元画像の1ドットを自動検出してそのままの解像度で取り込む（既定） / fit: --body に収まるよう縮小",
+    )
+    parser.add_argument("--body", type=int, default=46, help="fit のときのキャラ本体の最大の縦横ピクセル数")
+    parser.add_argument("--colors", type=int, default=16, help="輪郭色を含む色数の上限")
     parser.add_argument("--tolerance", type=float, default=100.0, help="背景色とみなす色の距離（縁のにじみが残る場合は上げる）")
     parser.add_argument("--min-area", type=int, default=200, help="これより小さい成分はノイズとして無視")
+    parser.add_argument(
+        "--walk-frames",
+        action="store_true",
+        help="入力が1体のキャラの歩行4ポーズの並びである場合に指定（歩行フレームを自動生成せず、そのまま使う）",
+    )
     parser.add_argument("--preview-scale", type=int, default=6)
     args = parser.parse_args()
 
@@ -225,7 +324,12 @@ def main() -> None:
     fg = ~background_mask(rgb, args.tolerance)
 
     boxes = find_characters(fg, args.min_area)
-    if len(boxes) != len(names):
+    if args.walk_frames:
+        if len(names) != 1:
+            raise SystemExit("--walk-frames では --names にキャラIDを1つだけ指定してください")
+        if len(boxes) != 4:
+            raise SystemExit(f"歩行ポーズを {len(boxes)} 個検出しました（4個が必要です）: {boxes}")
+    elif len(boxes) != len(names):
         raise SystemExit(f"キャラを {len(boxes)} 体検出しましたが、--names は {len(names)} 件です: {boxes}")
 
     args.out.mkdir(parents=True, exist_ok=True)
@@ -234,13 +338,21 @@ def main() -> None:
     cleaned = Image.fromarray(rgba)
 
     frames_by_name = {}
-    for name, box in zip(names, boxes):
-        sprite = to_sprite(cleaned.crop(box), args.size, args.body, args.colors)
-        frames = walk_frames(sprite)
+    if args.walk_frames:
+        name = names[0]
+        frames = to_walk_sprites(cleaned, boxes, args.size, args.body, args.colors, args.scale_mode)
         for i, frame in enumerate(frames):
             frame.save(args.out / f"{name}_right_{i}.png")
         frames_by_name[name] = frames
-        print(f"{name}: box={box} -> {args.out}/{name}_right_0..3.png")
+        print(f"{name}: {len(frames)} frames from {boxes} -> {args.out}/{name}_right_0..{len(frames) - 1}.png")
+    else:
+        for name, box in zip(names, boxes):
+            sprite = to_sprite(cleaned.crop(box), args.size, args.body, args.colors, args.scale_mode)
+            frames = walk_frames(sprite)
+            for i, frame in enumerate(frames):
+                frame.save(args.out / f"{name}_right_{i}.png")
+            frames_by_name[name] = frames
+            print(f"{name}: box={box} -> {args.out}/{name}_right_0..3.png")
 
     preview(frames_by_name, args.out, args.preview_scale)
     print(f"preview: {args.out}/preview_sheet.png, {args.out}/preview_walk.gif")
