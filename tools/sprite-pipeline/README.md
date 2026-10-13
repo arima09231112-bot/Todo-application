@@ -57,7 +57,6 @@ python3 tools/sprite-pipeline/build_sprites.py art/source/party.png \
 ## 注意
 
 - キャラの外見定義は `.claude/skills/pixel-art-character/references/characters.md` が正です。プロンプトを変えるときはそちらと合わせてください。
-
 - 背景を無地（マゼンタ推奨）にすると、背景除去が安定します。
 - 歩行フレームは「上半身の上下の揺れ＋片足の踏み出し」を自動生成します。凝った動きはできませんが、小さく表示する前提では十分に歩いて見えます。
 - 生成に使ったプロンプトと元画像は `docs/assets-log/` に保存し、素材の出どころを記録してください（App Store 公開時の権利確認のため）。
