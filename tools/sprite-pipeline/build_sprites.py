@@ -299,6 +299,7 @@ def main() -> None:
     parser.add_argument("input", type=Path)
     parser.add_argument("--names", required=True, help="左から順のキャラID（カンマ区切り）")
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--crop", help="入力画像の一部だけを使う場合の範囲 x0,y0,x1,y1（キャラ一覧シートからの切り出し用）")
     parser.add_argument("--size", type=int, default=48, help="スプライトのキャンバスサイズ")
     parser.add_argument(
         "--scale-mode",
@@ -320,6 +321,8 @@ def main() -> None:
 
     names = [n.strip() for n in args.names.split(",") if n.strip()]
     image = Image.open(args.input).convert("RGBA")
+    if args.crop:
+        image = image.crop(tuple(int(v) for v in args.crop.split(",")))
     rgb = np.array(image)[:, :, :3]
     fg = ~background_mask(rgb, args.tolerance)
 

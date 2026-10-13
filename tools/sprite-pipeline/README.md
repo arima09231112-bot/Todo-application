@@ -35,6 +35,7 @@ python3 -I tools/sprite-pipeline/build_sprites.py art/source/party_v1.png \
   --names hero,swordsman,mage,priest,thief,knight --out art/sprites/party
 ```
 
+- 1枚にいろいろ描かれたキャラシートから使う場合は `--crop x0,y0,x1,y1` で範囲を指定します。
 - 出力: `{名前}_right_{0..3}.png`、`preview_sheet.png`、`preview_walk.gif`
 - 実行時に「1ドット≒◯px と検出」と表示されます。**全キャラでこの値がほぼ同じ（＝ドット密度がそろっている）こと**を確認してください。1体だけ「fit」になった場合は密度がずれているので、再生成をおすすめします。
 - 縁に背景色のにじみが残る場合は `--tolerance` を上げ、キャラの一部が消える場合は下げます。
@@ -90,6 +91,13 @@ GPT が描いた歩行4ポーズをそのまま取り込んだ結果。1ドッ�
 
 ![スーパースター](../../docs/images/superstar-v1-sheet.png)
 ![スーパースター歩行](../../docs/images/superstar-v1-walk.gif)
+
+### 仲間6体 v1（本素材）
+
+キャラシート（`art/source/party_sheet_v1.png`）の歩行行を `--crop` で切り出して変換。手順は `docs/assets-log/party.md`。
+
+![パーティ](../../docs/images/party-v1-sheet.png)
+![隊列の歩行](../../docs/images/party-v1-walk.gif)
 
 ### 試作（画面イメージから）
 
