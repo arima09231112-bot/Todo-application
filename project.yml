@@ -1,0 +1,76 @@
+# XcodeGen の設定ファイル。`xcodegen` を実行すると RPGTodo.xcodeproj が生成される。
+# .xcodeproj は生成物なので Git には入れない（.gitignore 済み）。
+name: RPGTodo
+
+options:
+  bundleIdPrefix: com.example      # ← 自分の逆ドメインに変更する（README 参照）
+  deploymentTarget:
+    iOS: "27.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    # 自分の Apple Developer チーム ID（Xcode の Signing & Capabilities でも設定できる）
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Automatic
+    TARGETED_DEVICE_FAMILY: "1"    # iPhone のみ
+    # アプリとウィジェットで SwiftData / UserDefaults を共有するための App Group
+    APP_GROUP_ID: group.com.example.RPGTodo
+
+packages:
+  RPGTodoCore:
+    path: Packages/RPGTodoCore
+
+targets:
+  RPGTodo:
+    type: application
+    platform: iOS
+    sources:
+      - RPGTodo
+      - Shared
+    dependencies:
+      - package: RPGTodoCore
+      - target: RPGTodoWidget
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.RPGTodo
+        GENERATE_INFOPLIST_FILE: NO
+    info:
+      path: Config/RPGTodo-Info.plist
+      properties:
+        CFBundleDisplayName: RPG Todo
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        AppGroupID: $(APP_GROUP_ID)
+        NSCalendarsFullAccessUsageDescription: 予定からTodo候補を作るために、カレンダーを読み取ります（予定は変更しません）。
+    entitlements:
+      path: Config/RPGTodo.entitlements
+      properties:
+        com.apple.security.application-groups: [$(APP_GROUP_ID)]
+
+  RPGTodoWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - RPGTodoWidget
+      - Shared
+    dependencies:
+      - package: RPGTodoCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.RPGTodo.Widget
+        GENERATE_INFOPLIST_FILE: NO
+        SKIP_INSTALL: YES
+    info:
+      path: Config/RPGTodoWidget-Info.plist
+      properties:
+        CFBundleDisplayName: RPG Todo
+        AppGroupID: $(APP_GROUP_ID)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: Config/RPGTodoWidget.entitlements
+      properties:
+        com.apple.security.application-groups: [$(APP_GROUP_ID)]
