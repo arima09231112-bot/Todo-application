@@ -74,7 +74,9 @@ enum WidgetDataLoader {
     }
 
     private static func loadEntry(now: Date) throws -> TodoWidgetEntry {
-        let context = try AppStore.make().mainContext
+        // コンテナは変数で持ち続ける（context だけ取り出すと、コンテナが先に破棄されて落ちる）。
+        let container = try AppStore.make()
+        let context = container.mainContext
         let today = LocalDate(now)
 
         // アプリを開かなくても正しい日になるよう、日付変更の処理をここでも行う（要件 D-02・D-05。何度走っても結果は同じ）。

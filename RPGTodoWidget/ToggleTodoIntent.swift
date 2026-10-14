@@ -18,7 +18,9 @@ struct ToggleTodoIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult {
         guard let id = UUID(uuidString: todoID) else { return .result() }
-        let context = AppStore.makeContainer().mainContext
+        // コンテナは変数で持ち続ける（context だけ取り出すと、コンテナが先に破棄されて落ちる）。
+        let container = AppStore.makeContainer()
+        let context = container.mainContext
         let descriptor = FetchDescriptor<TodoItem>(predicate: #Predicate { $0.id == id })
         guard let todo = try? context.fetch(descriptor).first else { return .result() }
 
