@@ -23,6 +23,8 @@ struct TodoWidgetEntry: TimelineEntry, Sendable {
     let total: Int
     /// 今日の Todo（時刻順）。
     let todos: [WidgetTodo]
+    /// 読み込みに失敗したときの内容（画面に出して原因を調べられるようにする）。
+    var errorMessage: String? = nil
 
     /// 表示する件数を超えるときは、未完了を優先して残し、並びは時刻順のまま（要件 6.7）。
     func visibleTodos(limit: Int) -> (shown: [WidgetTodo], hidden: Int) {
@@ -32,6 +34,11 @@ struct TodoWidgetEntry: TimelineEntry, Sendable {
         for todo in todos where todo.isCompleted && keep.count < limit { keep.insert(todo.id) }
         return (todos.filter { keep.contains($0.id) }, todos.count - limit)
     }
+
+    /// 達成した仲間の人数（勇者を含まない、0〜5）。
+    var companionCount: Int { companions.count }
+
+    var countText: String { total == 0 ? "今日の冒険は準備中" : "\(completed)/\(total) タスク完了" }
 
     var percentText: String { percent.map { "\($0)%" } ?? "--" }
 
@@ -56,7 +63,18 @@ struct TodoWidgetEntry: TimelineEntry, Sendable {
 @MainActor
 enum WidgetDataLoader {
     static func load(now: Date = .now) -> TodoWidgetEntry {
-        let context = AppStore.makeContainer().mainContext
+        do {
+            return try loadEntry(now: now)
+        } catch {
+            return TodoWidgetEntry(
+                date: now, hero: CharacterCatalog.defaultHeroID, companions: [], percent: nil,
+                completed: 0, total: 0, todos: [], errorMessage: "読み込みエラー: \(error)"
+            )
+        }
+    }
+
+    private static func loadEntry(now: Date) throws -> TodoWidgetEntry {
+        let context = try AppStore.make().mainContext
         let today = LocalDate(now)
 
         // アプリを開かなくても正しい日になるよう、日付変更の処理をここでも行う（要件 D-02・D-05。何度走っても結果は同じ）。

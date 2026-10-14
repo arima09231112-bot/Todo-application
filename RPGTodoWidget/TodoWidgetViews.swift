@@ -3,7 +3,7 @@ import WidgetKit
 import AppIntents
 import RPGTodoCore
 
-/// サイズに応じて小・中・大のレイアウトを切り替える（要件 6.7）。
+/// サイズに応じて小・中・大のレイアウトを切り替える（要件 6.7。完成イメージ準拠）。
 struct TodoWidgetView: View {
     let entry: TodoWidgetEntry
     @Environment(\.widgetFamily) private var family
@@ -13,9 +13,9 @@ struct TodoWidgetView: View {
         case .systemSmall:
             SmallLayout(entry: entry)
         case .systemMedium:
-            ListLayout(entry: entry, limit: 4, partyHeight: 44)
+            WideLayout(entry: entry, limit: 4, ringSize: 44, fullWidthParty: false, partyHeight: 44)
         default:
-            ListLayout(entry: entry, limit: 8, partyHeight: 84)
+            WideLayout(entry: entry, limit: 8, ringSize: 76, fullWidthParty: true, partyHeight: 96)
         }
     }
 }
@@ -23,83 +23,166 @@ struct TodoWidgetView: View {
 private extension View {
     /// 背景のイラストの上でも読めるよう、半透明のカードに載せる。
     func widgetCard() -> some View {
-        background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    /// 背景の絵の上に直接置く文字（白＋影）。
+    func onArt() -> some View {
+        foregroundStyle(.white).shadow(color: .black.opacity(0.7), radius: 2, y: 1)
     }
 }
 
-/// 小: 達成率と完了数、パーティ。
+/// 達成率の円ゲージ。
+private struct WidgetRing: View {
+    let fraction: Double
+    let text: String
+    let size: CGFloat
+
+    var body: some View {
+        let line = max(4, size * 0.12)
+        ZStack {
+            Circle().fill(Color.black.opacity(0.45))
+            Circle().stroke(Color.white.opacity(0.25), lineWidth: line)
+            Circle()
+                .trim(from: 0, to: fraction)
+                .stroke(Color.blue, style: StrokeStyle(lineWidth: line, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+            Text(text)
+                .font(.system(size: size * 0.27, weight: .bold, design: .rounded))
+                .foregroundStyle(.white)
+                .minimumScaleFactor(0.6)
+                .lineLimit(1)
+                .padding(line)
+        }
+        .frame(width: size, height: size)
+    }
+}
+
+private extension TodoWidgetEntry {
+    var fraction: Double { total == 0 ? 0 : Double(completed) / Double(total) }
+    var partyText: String { "仲間 \(companionCount)/\(CompanionLottery.lineupSize)" }
+}
+
+/// 日付と「今日の冒険」。
+private struct TitleBlock: View {
+    let entry: TodoWidgetEntry
+    let titleSize: CGFloat
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(entry.date, format: .dateTime.month().day().weekday(.abbreviated))
+                .font(.caption2.bold())
+            Text("今日の冒険")
+                .font(.system(size: titleSize, weight: .heavy))
+                .minimumScaleFactor(0.7)
+                .lineLimit(1)
+        }
+        .onArt()
+    }
+}
+
+/// 達成率の円ゲージと、完了数・仲間の人数。
+private struct StatsBlock: View {
+    let entry: TodoWidgetEntry
+    let ringSize: CGFloat
+
+    var body: some View {
+        HStack(spacing: 6) {
+            WidgetRing(fraction: entry.fraction, text: entry.percentText, size: ringSize)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(entry.countText).font(.caption2.bold())
+                Label(entry.partyText, systemImage: "person.3.fill").font(.caption2.bold())
+            }
+            .onArt()
+            .minimumScaleFactor(0.7)
+            .lineLimit(1)
+        }
+    }
+}
+
+/// 小: 見出し・円ゲージ・完了数と仲間の人数・パーティ。
 private struct SmallLayout: View {
     let entry: TodoWidgetEntry
 
     var body: some View {
-        VStack(spacing: 4) {
-            VStack(spacing: 0) {
-                Text("今日の冒険")
-                    .font(.caption2.bold())
-                    .foregroundStyle(.secondary)
-                Text(entry.percentText)
-                    .font(.system(size: 30, weight: .bold, design: .rounded))
-                    .minimumScaleFactor(0.6)
-                    .lineLimit(1)
-                Text(entry.total == 0 ? "今日の冒険は準備中" : "\(entry.completed)/\(entry.total) 完了")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .minimumScaleFactor(0.7)
-                    .lineLimit(1)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 6)
-            .widgetCard()
-
+        VStack(spacing: 2) {
+            Text("今日の冒険").font(.system(size: 17, weight: .heavy)).onArt()
+            WidgetRing(fraction: entry.fraction, text: entry.percentText, size: 50)
+            Text("\(entry.total == 0 ? "準備中" : "\(entry.completed)/\(entry.total) 完了") ・ \(entry.partyText)")
+                .font(.system(size: 10, weight: .bold))
+                .minimumScaleFactor(0.6)
+                .lineLimit(1)
+                .onArt()
             Spacer(minLength: 0)
-            PartyField(hero: entry.hero, companions: entry.companions, height: 44)
+            PartyField(hero: entry.hero, companions: entry.companions, height: 40)
         }
     }
 }
 
-/// 中・大: 見出しと進捗バー、Todo の一覧、パーティ。
-private struct ListLayout: View {
+/// 中・大: 左に見出し・ゲージ・パーティ、右に「今日のタスク」カード（完成イメージ準拠）。
+/// 大は、パーティを下いっぱいに広げる。
+private struct WideLayout: View {
     let entry: TodoWidgetEntry
     let limit: Int
+    let ringSize: CGFloat
+    let fullWidthParty: Bool
     let partyHeight: CGFloat
 
     var body: some View {
-        let (shown, hidden) = entry.visibleTodos(limit: limit)
-        VStack(spacing: 4) {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text("今日の冒険").font(.caption.bold())
-                    Spacer(minLength: 0)
-                    Text(entry.percentText).font(.subheadline.bold())
-                    if entry.total > 0 {
-                        Text("\(entry.completed)/\(entry.total)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+        if fullWidthParty {
+            VStack(spacing: 4) {
+                HStack(alignment: .top, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        TitleBlock(entry: entry, titleSize: 24)
+                        StatsBlock(entry: entry, ringSize: ringSize)
+                        Spacer(minLength: 0)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    TaskCard(entry: entry, limit: limit)
+                        .frame(maxWidth: .infinity)
                 }
-                ProgressView(value: Double(entry.completed), total: Double(max(entry.total, 1)))
-                    .tint(.blue)
+                PartyField(hero: entry.hero, companions: entry.companions, height: partyHeight)
+            }
+        } else {
+            HStack(alignment: .top, spacing: 8) {
+                VStack(alignment: .leading, spacing: 2) {
+                    TitleBlock(entry: entry, titleSize: 19)
+                    StatsBlock(entry: entry, ringSize: ringSize)
+                    Spacer(minLength: 0)
+                    PartyField(hero: entry.hero, companions: entry.companions, height: partyHeight)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                TaskCard(entry: entry, limit: limit)
+                    .frame(maxWidth: .infinity)
+            }
+        }
+    }
+}
 
-                if shown.isEmpty {
-                    Text("今日の冒険は準備中")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(shown) { TodoLine(todo: $0) }
-                    if hidden > 0 {
-                        Text("ほか \(hidden) 件")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
+/// 「今日のタスク」のカード。
+private struct TaskCard: View {
+    let entry: TodoWidgetEntry
+    let limit: Int
+
+    var body: some View {
+        let (shown, hidden) = entry.visibleTodos(limit: limit)
+        VStack(alignment: .leading, spacing: 4) {
+            Text("今日のタスク").font(.caption.bold())
+            if let message = entry.errorMessage {
+                Text(message).font(.system(size: 9)).foregroundStyle(.secondary)
+            } else if shown.isEmpty {
+                Text("今日の冒険は準備中").font(.caption).foregroundStyle(.secondary)
+            } else {
+                ForEach(shown) { TodoLine(todo: $0) }
+                if hidden > 0 {
+                    Text("ほか \(hidden) 件").font(.caption2).foregroundStyle(.secondary)
                 }
             }
-            .padding(8)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .widgetCard()
-
             Spacer(minLength: 0)
-            PartyField(hero: entry.hero, companions: entry.companions, height: partyHeight)
         }
+        .padding(8)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .widgetCard()
     }
 }
 
@@ -108,9 +191,10 @@ private struct TodoLine: View {
     let todo: WidgetTodo
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 5) {
             Button(intent: ToggleTodoIntent(todoID: todo.id.uuidString)) {
                 Image(systemName: todo.isCompleted ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 17))
                     .foregroundStyle(todo.isCompleted ? Color.blue : Color.secondary)
             }
             .buttonStyle(.plain)
@@ -121,11 +205,6 @@ private struct TodoLine: View {
                 .foregroundStyle(todo.isCompleted ? Color.secondary : Color.primary)
                 .lineLimit(1)
             Spacer(minLength: 0)
-            if let timeText = todo.timeText {
-                Text(timeText)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
         }
     }
 }
