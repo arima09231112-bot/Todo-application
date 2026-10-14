@@ -46,14 +46,16 @@ struct HomeView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 16) {
-                header
-                taskCard
-                partyField
+            VStack(spacing: 0) {
+                VStack(spacing: 16) {
+                    header
+                    taskCard
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 12)
+                PartyField(hero: CharacterCatalog.defaultHeroID, companions: previewCompanions)
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 8)
-            .background(Color(.systemGroupedBackground))
+            .background(FieldSkyBackground())
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { editor = .new } label: { Image(systemName: "plus") }
@@ -138,6 +140,7 @@ struct HomeView: View {
             .padding(16)
         }
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.08), radius: 8, y: 2)
         .frame(maxHeight: .infinity)
         .confirmationDialog(
             "繰り返しのタスクです",
@@ -175,14 +178,9 @@ struct HomeView: View {
         .accessibilityLabel("リストメニュー")
     }
 
-    /// 冒険フィールド。Phase 2 で、日替わりの仲間を並べる。
-    private var partyField: some View {
-        HStack(spacing: 8) {
-            PixelSprite(character: CharacterCatalog.defaultHeroID, scale: 1)
-            Text(companionCount == 0 ? "勇者" : "勇者 ＋ 仲間\(companionCount)人")
-                .font(.subheadline.weight(.semibold))
-            Spacer()
-        }
+    /// 仮の顔ぶれ（抽選の対象から先頭の順に）。Phase 2 で、日ごとの重み付き抽選の結果に置き換える。
+    private var previewCompanions: [CharacterID] {
+        CharacterCatalog.companionPool.prefix(companionCount).map(\.id)
     }
 
     // MARK: 操作
