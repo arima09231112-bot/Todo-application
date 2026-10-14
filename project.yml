@@ -43,6 +43,7 @@ targets:
         CFBundleDisplayName: RPG Todo
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UIRequiresFullScreen: true          # 縦向き専用のため（Xcode の警告対策）
         AppGroupID: $(APP_GROUP_ID)
         NSCalendarsFullAccessUsageDescription: 予定からTodo候補を作るために、カレンダーを読み取ります（予定は変更しません）。
     entitlements:
