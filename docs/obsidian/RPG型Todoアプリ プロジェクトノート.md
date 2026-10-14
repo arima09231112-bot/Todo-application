@@ -5,7 +5,7 @@ tags:
   - project
   - ios
   - rpg-todo
-status: Phase 3 完了 → Phase 4（カレンダー連携）確認待ち／要件 v0.10
+status: Phase 3 完了 → Phase 4・5 確認待ち／要件 v0.11
 ---
 
 # RPG型Todoアプリ プロジェクトノート
@@ -75,11 +75,11 @@ status: Phase 3 完了 → Phase 4（カレンダー連携）確認待ち／要�
 - [x] Phase 2: パーティ表示・日ごとの重み付き抽選・加入演出・勇者の選択（2026-10-14 実機にインストールして確認）
 - [x] Phase 3: ウィジェット 小・中・大＋チェックで完了（2026-10-14 実機で確認済み）
 - [ ] Phase 4: カレンダー連携（コード作成済み・Mac での確認待ち。手順は `docs/phase4.md`）
-- [ ] Phase 5: 記録・図鑑・仕上げ
+- [ ] Phase 5: 記録・図鑑（コード作成済み・Mac での確認待ち。手順は `docs/phase5.md`。キャラのプロフィールは `docs/character-profiles.md`）
 
 ## 次にやること
 
-1. Phase 4 の確認（`docs/phase4.md`）。ビルドは Mac で初めて実行する
+1. Phase 4・5 の確認（`docs/phase4.md`・`docs/phase5.md`）。ビルドは Mac で初めて実行する
 2. コードを変えたら Mac で `git pull` → `xcodegen` → Xcode でスキーム `RPGTodo`・自分の iPhone を選んで ▶
 3. 共通ロジックのテストは `cd Packages/RPGTodoCore && swift test`
 

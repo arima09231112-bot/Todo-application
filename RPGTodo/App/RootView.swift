@@ -25,7 +25,7 @@ struct RootView: View {
                 CalendarView(today: today)
             }
             Tab("記録", systemImage: "chart.bar.fill", value: AppTab.records) {
-                ComingSoonView(title: "冒険の記録", message: "過去の達成率や図鑑は Phase 5 で追加します。")
+                RecordsView(today: today)
             }
             Tab("設定", systemImage: "gearshape.fill", value: AppTab.settings) {
                 SettingsView()

@@ -30,6 +30,7 @@ struct HomeView: View {
     @State private var categoryFilter: TodoCategory?
     @State private var editor: EditorTarget?
     @State private var showCarryOver = false
+    @State private var showEncyclopedia = false
     @State private var pendingDelete: TodoItem?
     // 加入演出（4.3.2）。表示中の仲間の人数は、達成率の人数とは別に持ち、演出の順番で増やす。
     @State private var shownCount = 0
@@ -91,10 +92,18 @@ struct HomeView: View {
                 .padding(.bottom, 8)
                 PartyField(hero: hero, companions: shownCompanions)
                     .padding(.bottom, 4)
+                    .contentShape(Rectangle())
+                    .onTapGesture { showEncyclopedia = true }
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityHint("キャラクター図鑑を開きます")
             }
             .overlay { effects }
             .background(AdventureBackground())
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { showEncyclopedia = true } label: { Image(systemName: "book.closed") }
+                        .accessibilityLabel("キャラクター図鑑")
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { editor = .new } label: { Image(systemName: "plus") }
                         .accessibilityLabel("タスクを追加")
@@ -107,6 +116,9 @@ struct HomeView: View {
         }
         .sheet(isPresented: $showCarryOver) {
             CarryOverSheet(today: today)
+        }
+        .sheet(isPresented: $showEncyclopedia) {
+            EncyclopediaView(today: today)
         }
         .sensoryFeedback(.selection, trigger: completedCount)
         .sensoryFeedback(.success, trigger: celebrationCount)

@@ -9,6 +9,8 @@ struct PixelSprite: View {
     let character: CharacterID
     /// キャンバス1辺の表示サイズ（pt）。
     var size: CGFloat
+    /// 図鑑の未発見キャラ: 形だけの影絵で表示する。
+    var silhouette = false
 
     static let canvas: CGFloat = 80
 
@@ -17,16 +19,19 @@ struct PixelSprite: View {
         self.size = Self.canvas * CGFloat(scale)
     }
 
-    init(character: CharacterID, size: CGFloat) {
+    init(character: CharacterID, size: CGFloat, silhouette: Bool = false) {
         self.character = character
         self.size = size
+        self.silhouette = silhouette
     }
 
     var body: some View {
         Image("Characters/\(character.rawValue)")
+            .renderingMode(silhouette ? .template : .original)
             .resizable()
             .interpolation(.high)
+            .foregroundStyle(Color.primary.opacity(0.75))
             .frame(width: size, height: size)
-            .accessibilityLabel(character.rawValue)
+            .accessibilityLabel(silhouette ? "未発見のキャラ" : character.rawValue)
     }
 }
