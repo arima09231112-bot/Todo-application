@@ -4,7 +4,7 @@ import SwiftData
 /// SwiftData のコンテナ。保存先は App Group の共有フォルダ（Phase 3 でウィジェットと共有する）。
 enum AppStore {
     static func makeContainer() -> ModelContainer {
-        let schema = Schema([TodoItem.self, RecurrenceItem.self])
+        let schema = Schema([TodoItem.self, RecurrenceItem.self, DailyProgress.self])
         do {
             let configuration: ModelConfiguration
             if let groupID = SharedContainer.groupID, SharedContainer.url != nil {

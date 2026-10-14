@@ -15,17 +15,25 @@ enum EditorTarget: Identifiable {
     }
 }
 
-/// ホーム画面（今日の冒険）。Phase 1 では日付・達成率・タスク一覧まで。パーティの表示は Phase 2。
+/// ホーム画面（今日の冒険）: 日付・達成率・タスク一覧・冒険フィールド（勇者と、日替わりの仲間）。
 struct HomeView: View {
     let today: LocalDate
 
     @Environment(\.modelContext) private var context
     @Query(sort: \TodoItem.createdAt) private var allTodos: [TodoItem]
+    @Query private var progresses: [DailyProgress]
+    @AppStorage(SettingsKey.hero, store: SharedContainer.defaults) private var heroRaw = CharacterCatalog.defaultHeroID.rawValue
     @AppStorage("home.hideCompleted") private var hideCompleted = false
     @State private var categoryFilter: TodoCategory?
     @State private var editor: EditorTarget?
     @State private var showCarryOver = false
     @State private var pendingDelete: TodoItem?
+    // 加入演出（4.3.2）。表示中の仲間の人数は、達成率の人数とは別に持ち、演出の順番で増やす。
+    @State private var shownCount = 0
+    @State private var celebrationTask: Task<Void, Never>?
+    @State private var celebrationCount = 0
+    @State private var starShowerID: UUID?
+    @State private var showAssembledBanner = false
 
     // MARK: 集計
 
@@ -33,6 +41,30 @@ struct HomeView: View {
     private var completedCount: Int { todayTodos.filter(\.isCompleted).count }
     private var percent: Int? { CompletionRate.percent(completed: completedCount, total: todayTodos.count) }
     private var companionCount: Int { CompletionRate.companionCount(percent: percent) }
+
+    private var todayProgress: DailyProgress? { progresses.first { $0.dateKey == today.dayKey } }
+    private var hero: CharacterID { HeroSetting.resolve(heroRaw) }
+    private var shownCompanions: [CharacterID] {
+        PartyMilestones.members(lineup: todayProgress?.lineup ?? [], companionCount: shownCount)
+    }
+
+    private struct StatsKey: Equatable {
+        var total: Int
+        var completed: Int
+    }
+
+    private struct PartyState: Equatable {
+        var companionCount: Int
+        var hasLineup: Bool
+    }
+
+    private var statsKey: StatsKey { StatsKey(total: todayTodos.count, completed: completedCount) }
+    private var partyState: PartyState {
+        PartyState(
+            companionCount: companionCount,
+            hasLineup: (todayProgress?.companionLineup.count ?? 0) >= CompanionLottery.lineupSize
+        )
+    }
 
     /// 表示する行。絞り込みは表示だけに効かせ、達成率の計算には影響させない。
     private var visibleTodos: [TodoItem] {
@@ -53,9 +85,10 @@ struct HomeView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 8)
-                PartyField(hero: CharacterCatalog.defaultHeroID, companions: previewCompanions)
+                PartyField(hero: hero, companions: shownCompanions)
                     .padding(.bottom, 4)
             }
+            .overlay { effects }
             .background(AdventureBackground())
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -72,6 +105,11 @@ struct HomeView: View {
             CarryOverSheet(today: today)
         }
         .sensoryFeedback(.selection, trigger: completedCount)
+        .sensoryFeedback(.success, trigger: celebrationCount)
+        .onChange(of: statsKey, initial: true) { _, _ in
+            if let progress = todayProgress { DailyProgressService.recordSnapshot(progress, in: context) }
+        }
+        .onChange(of: partyState, initial: true) { _, _ in syncParty() }
     }
 
     private var header: some View {
@@ -180,9 +218,75 @@ struct HomeView: View {
         .accessibilityLabel("リストメニュー")
     }
 
-    /// 仮の顔ぶれ（抽選の対象から先頭の順に）。Phase 2 で、日ごとの重み付き抽選の結果に置き換える。
-    private var previewCompanions: [CharacterID] {
-        CharacterCatalog.companionPool.prefix(companionCount).map(\.id)
+    /// 加入演出・バナー・星の演出。操作の邪魔にならないよう、タップは通す。
+    private var effects: some View {
+        ZStack(alignment: .bottom) {
+            if let id = starShowerID {
+                StarShowerView()
+                    .id(id)
+                    .transition(.opacity)
+            }
+            if showAssembledBanner {
+                AllAssembledBanner()
+                    .padding(.bottom, 140)
+                    .transition(.scale.combined(with: .opacity))
+            }
+        }
+        .allowsHitTesting(false)
+    }
+
+    // MARK: 加入演出
+
+    /// 達成率に合わせて、表示する仲間の人数を更新する。
+    ///
+    /// - 節目（20%ごと）に初めて届いたときだけ、1人ずつ順番に加入演出を再生する（1日1回）。
+    /// - 一度届いた節目は記録しておき、付け外しを繰り返しても再生しない。減るときも演出なし。
+    private func syncParty() {
+        celebrationTask?.cancel()
+        guard let progress = todayProgress, partyState.hasLineup else {
+            showImmediately(companionCount)
+            return
+        }
+        let target = companionCount
+        let fresh = PartyMilestones.newMilestones(companionCount: target, unlocked: progress.unlockedMilestones)
+        guard let first = fresh.first else {
+            showImmediately(target)
+            return
+        }
+        DailyProgressService.unlock(fresh, in: progress, context: context)
+        let lineup = progress.lineup
+        showImmediately(min(shownCount, first - 1))
+
+        celebrationTask = Task { @MainActor in
+            for milestone in fresh {
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.55)) { shownCount = milestone }
+                celebrationCount += 1
+                if lineup[milestone - 1] == "superstar" { playStarShower() }
+                try? await Task.sleep(for: .milliseconds(550))
+                if Task.isCancelled { return }
+            }
+            if fresh.contains(CompanionLottery.lineupSize) { await playAssembledBanner() }
+        }
+    }
+
+    private func showImmediately(_ count: Int) {
+        var transaction = Transaction(animation: nil)
+        transaction.disablesAnimations = true
+        withTransaction(transaction) { shownCount = count }
+    }
+
+    private func playStarShower() {
+        withAnimation { starShowerID = UUID() }
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(3.2))
+            withAnimation { starShowerID = nil }
+        }
+    }
+
+    private func playAssembledBanner() async {
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) { showAssembledBanner = true }
+        try? await Task.sleep(for: .seconds(2.5))
+        withAnimation { showAssembledBanner = false }
     }
 
     // MARK: 操作

@@ -25,7 +25,7 @@ struct RPGTodoWidgetView: View {
     var body: some View {
         VStack(spacing: 4) {
             Text("今日の冒険").font(.headline)
-            PixelSprite(character: CharacterCatalog.defaultHeroID, scale: 1)
+            PixelSprite(character: HeroSetting.resolve(SharedContainer.defaults?.string(forKey: SettingsKey.hero) ?? ""), size: 80)
             Text(SharedContainer.url == nil ? "App Group: 未設定" : "App Group: OK")
                 .font(.caption2)
                 .foregroundStyle(.secondary)

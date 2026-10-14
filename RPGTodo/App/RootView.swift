@@ -34,10 +34,13 @@ struct RootView: View {
         }
     }
 
-    /// 日付変更の処理（要件 D-02〜D-05）: 今日を更新し、繰り返し Todo を生成する。何度呼んでも二重には作らない。
+    /// 日付変更の処理（要件 D-02〜D-05）。何度呼んでも結果は同じ（二重に作らない・引き直さない）。
+    /// ①前日までの記録を確定 → ②（ストリークは P1）→ ③今日の繰り返し Todo を生成 → ④今日の仲間を抽選
     private func refreshDay() {
         let now = LocalDate(.now)
         today = now
+        DailyProgressService.finalizePastDays(before: now, in: context)
         TodoService.generateRecurringTodos(through: now, in: context)
+        DailyProgressService.prepareToday(now, in: context)
     }
 }

@@ -72,14 +72,14 @@ status: Phase 1 完了 → Phase 2 へ／要件 v0.10
 - [x] Phase 0 のファイル一式（`project.yml`、アプリ、ウィジェット、`RPGTodoCore`）
 - [x] Phase 0 の Mac での確認（2026-10-14。iPhone で起動・App Group OK・ウィジェット表示・`swift test` 成功）
 - [x] Phase 1: Todo 基本機能＋繰り返し（2026-10-14 実機で確認済み）
-- [ ] Phase 2: パーティ表示（静止画）・ランダム抽選・加入演出・図鑑の素材取り込み
+- [ ] Phase 2: パーティ表示・日ごとの重み付き抽選・加入演出・勇者の選択（コード作成済み・Mac での確認待ち。手順は `docs/phase2.md`）
 - [ ] Phase 3: ウィジェット
 - [ ] Phase 4: カレンダー連携
 - [ ] Phase 5: 記録・図鑑・仕上げ
 
 ## 次にやること
 
-1. Phase 2: パーティ表示（静止画）・日ごとの重み付き抽選・加入演出・勇者の見た目の選択
+1. Phase 2 の確認（`docs/phase2.md`）。ビルド・テストは Mac で初めて実行する
 2. コードを変えたら Mac で `git pull` → `xcodegen` → Xcode でスキーム `RPGTodo`・自分の iPhone を選んで ▶
 3. 共通ロジックのテストは `cd Packages/RPGTodoCore && swift test`
 
