@@ -4,7 +4,7 @@
     python3 tools/promo-video/make_promo.py [出力先.mp4] [--preview 秒 ...]
 
 - 素材: art/sprites（キャラ）, art/backgrounds（昼・夜）, art/icon（アイコン）。
-- 絵は Pillow で1コマずつ描き、音（8ビット風の自作BGM＋効果音）は numpy で作って、ffmpeg でまとめる。
+- 絵は Pillow で1コマずつ描き、音（オーケストラ風の自作BGM）は numpy で作って、ffmpeg でまとめる。
 - 画面は実機のスクリーンショットではなく、アプリの見た目を再現したもの。
 """
 import math
@@ -52,6 +52,7 @@ RANDOM_LINEUPS = [
     ["superstar", "demonlord_m", "mage_f", "golem", "priest_f"],
 ]
 RANDOM_STEP = 2.0
+RANDOM_PARTY_SIZE = 270  # 「仲間は、毎日ちがう」の場面のキャラの大きさ
 
 BOOK = [  # (id, ジョブ名, 最初から見つかっているか)
     ("warrior_m", "戦士", True), ("mage_f", "魔法使い", True), ("slime", "スライム", True),
@@ -245,14 +246,14 @@ PARTY_SIZE = 230
 PARTY_BASE = 1880  # キャラの足元
 
 
-def party_x(i):
-    spacing = (W - 8 - 6 * PARTY_SIZE) / 5
-    return 4 + i * (PARTY_SIZE + spacing)
+def party_x(i, size=PARTY_SIZE):
+    spacing = (W - 8 - 6 * size) / 5
+    return 4 + i * (size + spacing)
 
 
 def draw_party(cv, t, members, join_times, hop_from=None, size=PARTY_SIZE):
     """勇者を先頭に、仲間を横一列に描く。join_times[i] 以降に上から弾んで現れる。"""
-    blit(cv, sprite(HERO, size), party_x(0), PARTY_BASE - size)
+    blit(cv, sprite(HERO, size), party_x(0, size), PARTY_BASE - size)
     for i, cid in enumerate(members):
         jt = join_times[i]
         if t < jt:
@@ -262,7 +263,7 @@ def draw_party(cv, t, members, join_times, hop_from=None, size=PARTY_SIZE):
         hop = 0
         if hop_from is not None and t > hop_from:
             hop = -abs(math.sin((t - hop_from) * 6 + i)) * 26
-        x = party_x(i + 1)
+        x = party_x(i + 1, size)
         blit(cv, sprite(cid, size), x, PARTY_BASE - size - drop + hop, opacity=clamp01(p * 4))
         sparkle(cv, x + size / 2, PARTY_BASE - size / 2, (t - jt - 0.35) / 0.6)
     if hop_from is not None and t > hop_from:
@@ -401,7 +402,7 @@ def scene_random(t):
         d.text((W / 2, 760), "まれに…スーパースターも！", font=ui_font(60), fill=(255, 205, 230, int(255 * ra)), anchor="mm")
     cv.alpha_composite(lay)
     joins = [SCENE_RANDOM[0] + idx * RANDOM_STEP + 0.1 + 0.18 * i for i in range(5)]
-    draw_party(cv, t, RANDOM_LINEUPS[idx], joins)
+    draw_party(cv, t, RANDOM_LINEUPS[idx], joins, size=RANDOM_PARTY_SIZE)
     if rare:
         star_shower(cv, t, joins[0] + 0.2, SCENE_RANDOM[1])
     return cv
@@ -608,120 +609,155 @@ def render_frame(i):
     return cv.convert("RGB").tobytes()
 
 
-# ---------------------------------------------------------------- 音（8ビット風・オリジナル）
+# ---------------------------------------------------------------- 音（オーケストラ風・オリジナル）
+# 弦・金管・ハープ・ティンパニ・シンバルを、加算合成とノイズで作る（サンプル音源は使わない）。
 
 SR = 44100
+BPM = 120
+BEAT = 60 / BPM
+BAR = BEAT * 4
 
 
 def midi_hz(n):
     return 440.0 * 2 ** ((n - 69) / 12)
 
 
-def tone(freq, dur, kind="square", vol=0.3, duty=0.5, attack=0.005, release=0.06):
+def _env(n, attack, release):
+    x = np.arange(n) / SR
+    dur = n / SR
+    return np.minimum(1.0, x / max(attack, 1e-4)) * np.clip((dur - x) / max(release, 1e-4), 0, 1)
+
+
+def horn(freq, dur, vol, harm=10, attack=0.04, release=0.12, vibrato=0.0, detune=0.0):
+    """弦・金管のような、倍音の多い持続音。"""
     n = int(SR * dur)
     x = np.arange(n) / SR
-    ph = (x * freq) % 1.0
-    if kind == "square":
-        w = np.where(ph < duty, 1.0, -1.0)
-    elif kind == "tri":
-        w = 4 * np.abs(ph - 0.5) - 1
-    else:
-        w = np.random.default_rng(1).uniform(-1, 1, n)
-    env = np.minimum(1, x / attack) * np.minimum(1, (dur - x) / release).clip(0, 1)
-    return w * env * vol
+    out = np.zeros(n)
+    for d in ((-detune, detune) if detune else (0.0,)):
+        vib = 1 + vibrato * np.sin(2 * np.pi * 5.2 * x) * np.minimum(1, x / 0.35)
+        ph = 2 * np.pi * np.cumsum(freq * (1 + d) * vib) / SR
+        out += sum(np.sin(k * ph) / k for k in range(1, harm + 1))
+    out /= (2 if detune else 1)
+    return out * _env(n, attack, release) * vol
+
+
+def pluck(freq, dur, vol):
+    """ハープのはじく音。"""
+    n = int(SR * dur)
+    x = np.arange(n) / SR
+    w = np.sin(2 * np.pi * freq * x) + 0.45 * np.sin(4 * np.pi * freq * x) + 0.2 * np.sin(6 * np.pi * freq * x)
+    return w * np.exp(-x * 5.5) * np.minimum(1, x / 0.003) * vol
+
+
+def timpani(vol, low=56):
+    n = int(SR * 0.9)
+    x = np.arange(n) / SR
+    f = low + 40 * np.exp(-x * 18)
+    body = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-x * 5.0)
+    thump = np.random.default_rng(2).uniform(-1, 1, n) * np.exp(-x * 60) * 0.25
+    return (body + thump) * vol
+
+
+def snare(vol):
+    n = int(SR * 0.16)
+    x = np.arange(n) / SR
+    noise = np.random.default_rng(5).uniform(-1, 1, n)
+    return (noise * np.exp(-x * 26) + 0.4 * np.sin(2 * np.pi * 190 * x) * np.exp(-x * 40)) * vol
+
+
+def cymbal(vol, dur=2.2):
+    n = int(SR * dur)
+    x = np.arange(n) / SR
+    noise = np.diff(np.random.default_rng(8).uniform(-1, 1, n + 1))
+    return noise * np.exp(-x * 2.3) * np.minimum(1, x / 0.01) * vol
 
 
 def put(buf, t, sig):
     i = int(t * SR)
-    if i >= len(buf):
+    if i >= len(buf) or i < 0:
         return
     j = min(len(buf), i + len(sig))
     buf[i:j] += sig[: j - i]
 
 
+CHORDS = [(48, [60, 64, 67]), (43, [59, 62, 67]), (45, [60, 64, 69]), (41, [60, 65, 69])]  # C G Am F
+PHRASE_A = [(64, 1), (67, 1), (72, 1), (67, 1), (62, 1), (67, 1), (71, 1), (67, 1),
+            (60, 1), (64, 1), (69, 1), (64, 1), (65, 1.5), (69, .5), (72, 2)]
+PHRASE_B = [(67, 1), (72, 1), (76, 1), (72, 1), (74, 1), (71, 1), (67, 1), (71, 1),
+            (69, 1), (72, 1), (76, 1), (72, 1), (72, 1), (69, .5), (67, .5), (72, 2)]
+MELODY_START, OUTRO, FINALE = 4.0, 36.0, 40.0
+
+
 def build_audio(path):
     total = int(DURATION * SR)
     buf = np.zeros(total)
-    bpm = 132
-    beat = 60 / bpm
-    chords = [(48, [60, 64, 67]), (43, [59, 62, 67]), (45, [60, 64, 69]), (41, [60, 65, 69])]  # C G Am F
-    phrase_a = [(76, 1), (79, 1), (84, 1), (79, 1), (74, 1), (79, 1), (83, 1), (79, 1),
-                (72, 1), (76, 1), (81, 1), (76, 1), (77, 1.5), (81, .5), (84, 2)]
-    phrase_b = [(79, 1), (84, 1), (88, 1), (84, 1), (86, 1), (83, 1), (79, 1), (83, 1),
-                (81, 1), (84, 1), (88, 1), (84, 1), (84, 1), (81, .5), (79, .5), (84, 2)]
-    bars = int(DURATION / (beat * 4)) + 1
-    for bar in range(bars):
-        t0 = bar * beat * 4
-        root, tri_notes = chords[bar % 4]
-        intro = t0 < 4.5
-        for b in range(8):  # ベース（8分音符）
-            put(buf, t0 + b * beat / 2, tone(midi_hz(root + (12 if b % 4 == 3 else 0)), beat / 2 * 0.9, "tri", 0.30))
-        for b in range(16):  # アルペジオ
-            n = tri_notes[b % 3] + (12 if b % 6 >= 3 else 0)
-            put(buf, t0 + b * beat / 4, tone(midi_hz(n + 12), beat / 4 * 0.8, "square", 0.05 if not intro else 0.035, 0.25))
-        if not intro:
-            for b in range(4):  # ドラム
-                put(buf, t0 + b * beat, tone(120 - 60 * 0, 0.09, "square", 0.0) if False else kick(0.35))
-                if b % 2 == 1:
-                    put(buf, t0 + b * beat, snare(0.16))
+
+    # 弦のパッドとハープ・低音（小節ごと。最初の2小節は Am-F の導入、4秒から C で始まる）
+    for bar in range(int(DURATION / BAR) + 1):
+        t0 = bar * BAR
+        if t0 >= FINALE:
+            break
+        root, notes = CHORDS[(bar - 2) % 4]
+        for n in notes:
+            put(buf, t0, horn(midi_hz(n - 12), BAR + 0.25, 0.050, harm=7, attack=0.22, release=0.5, vibrato=0.003, detune=0.004))
+        for b in range(8):  # ハープ（8分音符のアルペジオ）
+            tone_ = [notes[0], notes[1], notes[2], notes[0] + 12, notes[2], notes[1], notes[0] + 12, notes[2]][b]
+            put(buf, t0 + b * BEAT / 2, pluck(midi_hz(tone_ + 12), 0.7, 0.07 if t0 >= MELODY_START else 0.05))
+        if t0 >= MELODY_START:
+            for b in range(4):  # コントラバス（根音と5度）
+                put(buf, t0 + b * BEAT, horn(midi_hz(root + (7 if b % 2 else 0)), BEAT * 0.8, 0.12, harm=5, attack=0.02, release=0.15))
+            put(buf, t0, timpani(0.30))
+            put(buf, t0 + 2 * BEAT, timpani(0.22))
+            for b in (1, 3):
+                put(buf, t0 + b * BEAT, snare(0.10))
+        else:  # 導入: ティンパニの小さなロール
             for b in range(8):
-                put(buf, t0 + b * beat / 2 + beat / 4 * 0, hat(0.05))
-    # リード（4小節ごとにフレーズを交互に）
-    t = 4.0
-    phrases = [phrase_a, phrase_b]
-    k = 0
-    while t < DURATION - 1:
-        for note, d in phrases[k % 2]:
-            if t >= DURATION - 1:
-                break
-            put(buf, t, tone(midi_hz(note), d * beat * 0.92, "square", 0.09, 0.25))
-            t += d * beat
-        k += 1
-    # 効果音は最小限（ピープ音は入れない）。節目だけ、やわらかい音を小さく鳴らす。
-    for i, n in enumerate([72, 76, 79, 84]):
-        put(buf, BANNER_AT + i * 0.12, tone(midi_hz(n), 0.5 if i == 3 else 0.16, "tri", 0.16, release=0.3))
-    for i, n in enumerate([84, 91]):
-        put(buf, SUPERSTAR_FOUND_AT + i * 0.1, tone(midi_hz(n), 0.4, "tri", 0.12, release=0.3))
-    # 仕上げ
-    fade_out = np.clip((DURATION - np.arange(total) / SR) / 1.5, 0, 1)
-    buf *= fade_out
-    buf = np.tanh(buf * 1.3) * 0.85
-    pcm = (buf * 32767).astype(np.int16)
+                put(buf, t0 + b * BEAT / 2, timpani(0.05 + 0.02 * (bar * 8 + b), low=62))
+
+    # 金管のメロディ（4秒から。A・B・A・B の順）
+    t = MELODY_START
+    phrases = [PHRASE_A, PHRASE_B, PHRASE_A, PHRASE_B]
+    for ph in phrases:
+        for note, d in ph:
+            put(buf, t, horn(midi_hz(note), d * BEAT * 0.95, 0.105, harm=9, attack=0.045, release=0.12, vibrato=0.004 if d > 1.2 else 0.0))
+            put(buf, t, horn(midi_hz(note - 12), d * BEAT * 0.95, 0.04, harm=6, attack=0.06, release=0.12))
+            t += d * BEAT
+    # アウトロ（36〜40秒）と最後の和音（40秒〜）
+    outro = [(64, 1), (67, 1), (72, 1), (67, 1), (62, 1), (67, 2), (71, 1)]
+    t = OUTRO
+    for note, d in outro:
+        put(buf, t, horn(midi_hz(note), d * BEAT * 0.95, 0.12, harm=9, attack=0.045, release=0.12))
+        t += d * BEAT
+    for n in (60, 64, 67, 72, 76):
+        put(buf, FINALE, horn(midi_hz(n), DURATION - FINALE + 0.5, 0.075, harm=9, attack=0.06, release=1.0, vibrato=0.003, detune=0.003))
+    put(buf, FINALE, horn(midi_hz(36), DURATION - FINALE + 0.5, 0.16, harm=5, attack=0.05, release=1.0))
+    put(buf, FINALE, timpani(0.45))
+    for i in range(6):  # 100% の前の太鼓のクレッシェンド
+        pass
+    # 場面の切り替えのシンバルと、100% 前のスネアロール
+    for ct, v in ((BANNER_AT, 0.22), (SCENE_RANDOM[0], 0.10), (SCENE_WIDGET[0], 0.10), (OUTRO, 0.16), (FINALE, 0.22)):
+        put(buf, ct, cymbal(v))
+    roll_t = BANNER_AT - 2 * BEAT
+    for i in range(16):
+        put(buf, roll_t + i * BEAT / 4 * 0.5 * 2, snare(0.05 + 0.09 * i / 16))
+    put(buf, BANNER_AT, timpani(0.5, low=52))
+
+    # 残響（広い部屋の響き）と仕上げ
+    ir_n = int(SR * 1.4)
+    ir = np.random.default_rng(3).normal(size=ir_n) * np.exp(-np.arange(ir_n) / SR / 0.38)
+    size = 1 << (total + ir_n).bit_length()
+    wet = np.fft.irfft(np.fft.rfft(buf, size) * np.fft.rfft(ir, size), size)[:total]
+    wet *= np.abs(buf).max() / max(np.abs(wet).max(), 1e-9) * 0.9
+    mix = buf * 0.8 + wet * 0.45
+    fade_out = np.clip((DURATION - np.arange(total) / SR) / 1.6, 0, 1)
+    mix *= fade_out
+    mix = np.tanh(mix / np.abs(mix).max() * 1.6) * 0.88
+    pcm = (mix * 32767).astype(np.int16)
     with wave.open(str(path), "wb") as f:
         f.setnchannels(1)
         f.setsampwidth(2)
         f.setframerate(SR)
         f.writeframes(pcm.tobytes())
-
-
-def kick(vol):
-    n = int(SR * 0.14)
-    x = np.arange(n) / SR
-    f = 150 * np.exp(-x * 28) + 40
-    return np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-x * 22) * vol
-
-
-def snare(vol):
-    n = int(SR * 0.12)
-    x = np.arange(n) / SR
-    return np.random.default_rng(5).uniform(-1, 1, n) * np.exp(-x * 30) * vol
-
-
-def hat(vol):
-    n = int(SR * 0.04)
-    x = np.arange(n) / SR
-    return np.random.default_rng(9).uniform(-1, 1, n) * np.exp(-x * 90) * vol
-
-
-def blip(notes, step, vol):
-    return np.concatenate([tone(midi_hz(n), step, "square", vol, 0.5, release=0.03) for n in notes])
-
-
-def pop_sfx(vol=0.2):
-    n = int(SR * 0.16)
-    x = np.arange(n) / SR
-    f = 380 + 900 * x / 0.16
-    return np.sign(np.sin(2 * np.pi * np.cumsum(f) / SR)) * np.exp(-x * 14) * vol
 
 
 # ---------------------------------------------------------------- 実行
