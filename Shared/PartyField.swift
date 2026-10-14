@@ -2,14 +2,16 @@ import SwiftUI
 import RPGTodoCore
 
 /// 冒険の背景（草原・湖・森の縦長イラスト）。画面全体に敷き、下端（キャラが立つ道）を画面下にそろえる。
+/// ライトモードは昼、ダークモードは夜の絵（同じ構図。要件 F-08）。
 struct AdventureBackground: View {
     @Environment(\.colorScheme) private var colorScheme
 
-    /// 背景のアセット名。ウィジェットは画像の大きさに上限があるため、縮小版（`Backgrounds/widget_day`）を使う。
-    var imageName = "Backgrounds/home_day"
+    /// ウィジェットは画像の大きさに上限があるため、縮小版（`widget_*`）を使う。
+    var isWidget = false
 
-    /// ダークモードで背景を暗くする量（夜の背景ができるまでの代わり。要件 F-08）。
-    static let nightDimming = 0.45
+    private var imageName: String {
+        "Backgrounds/\(isWidget ? "widget" : "home")_\(colorScheme == .dark ? "night" : "day")"
+    }
 
     var body: some View {
         GeometryReader { geometry in
@@ -18,7 +20,6 @@ struct AdventureBackground: View {
                 .scaledToFill()
                 .frame(width: geometry.size.width, height: geometry.size.height, alignment: .bottom)
                 .clipped()
-                .overlay(Color.black.opacity(colorScheme == .dark ? Self.nightDimming : 0))
         }
         .ignoresSafeArea()
         .accessibilityHidden(true)

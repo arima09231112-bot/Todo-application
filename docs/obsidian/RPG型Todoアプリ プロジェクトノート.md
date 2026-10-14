@@ -5,7 +5,7 @@ tags:
   - project
   - ios
   - rpg-todo
-status: Phase 0〜5 完了（MVP の機能が出そろった）→ 仕上げ（アイコン・夜の背景・初回の勇者選択）／要件 v0.11
+status: Phase 0〜5 完了 → 仕上げ（アイコン・夜の背景は取り込み済み・確認待ち／初回の勇者選択は未着手）／要件 v0.12
 ---
 
 # RPG型Todoアプリ プロジェクトノート
@@ -79,7 +79,7 @@ status: Phase 0〜5 完了（MVP の機能が出そろった）→ 仕上げ（�
 
 ## 次にやること
 
-1. 仕上げ: アプリアイコン、夜の背景、初回起動の勇者選択、P1 項目（予定の変更検知など）
+1. アプリアイコンと夜の背景の確認（`docs/assets-log/icon-and-night.md`）。そのあと初回起動の勇者選択、P1 項目（予定の変更検知など）
 2. コードを変えたら Mac で `git pull` → `xcodegen` → Xcode でスキーム `RPGTodo`・自分の iPhone を選んで ▶
 3. 共通ロジックのテストは `cd Packages/RPGTodoCore && swift test`
 
