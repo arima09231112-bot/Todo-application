@@ -14,6 +14,7 @@
 使い方:
     python3 build_sprites.py INPUT.png --names hero,swordsman,mage --out OUT_DIR
     python3 build_sprites.py WALK.png --names superstar --walk-frames --out OUT_DIR
+    python3 build_sprites.py SHEET.png --names hero,swordsman --static --out OUT_DIR   # 静止画1枚（現行）
 
 必要ライブラリ: Pillow, numpy
 """
@@ -274,6 +275,14 @@ def preview(frames_by_name: dict[str, list[Image.Image]], out_dir: Path, scale: 
     size = frames_by_name[names[0]][0].size[0]
     cell = size * scale
 
+    if all(len(f) == 1 for f in frames_by_name.values()):
+        # 静止画のみ: 全キャラを横一列に並べた一覧（アプリのフィールドのイメージ）
+        row = Image.new("RGBA", (cell * len(names), cell), (196, 228, 160, 255))
+        for col, name in enumerate(names):
+            row.alpha_composite(frames_by_name[name][0].resize((cell, cell), Image.NEAREST), (col * cell, 0))
+        row.save(out_dir / "preview_sheet.png")
+        return
+
     sheet = Image.new("RGBA", (cell * 4, cell * len(names)), (238, 244, 252, 255))
     for row, name in enumerate(names):
         for col, frame in enumerate(frames_by_name[name]):
@@ -316,6 +325,11 @@ def main() -> None:
         action="store_true",
         help="入力が1体のキャラの歩行4ポーズの並びである場合に指定（歩行フレームを自動生成せず、そのまま使う）",
     )
+    parser.add_argument(
+        "--static",
+        action="store_true",
+        help="立ち姿の静止画1枚だけを {名前}.png として出力する（歩行フレームは作らない。複数キャラが並んだ画像向け）",
+    )
     parser.add_argument("--preview-scale", type=int, default=6)
     args = parser.parse_args()
 
@@ -327,6 +341,8 @@ def main() -> None:
     fg = ~background_mask(rgb, args.tolerance)
 
     boxes = find_characters(fg, args.min_area)
+    if args.static and args.walk_frames:
+        raise SystemExit("--static と --walk-frames は同時に指定できません")
     if args.walk_frames:
         if len(names) != 1:
             raise SystemExit("--walk-frames では --names にキャラIDを1つだけ指定してください")
@@ -348,6 +364,12 @@ def main() -> None:
             frame.save(args.out / f"{name}_right_{i}.png")
         frames_by_name[name] = frames
         print(f"{name}: {len(frames)} frames from {boxes} -> {args.out}/{name}_right_0..{len(frames) - 1}.png")
+    elif args.static:
+        for name, box in zip(names, boxes):
+            sprite = to_sprite(cleaned.crop(box), args.size, args.body, args.colors, args.scale_mode)
+            sprite.save(args.out / f"{name}.png")
+            frames_by_name[name] = [sprite]
+            print(f"{name}: box={box} -> {args.out}/{name}.png")
     else:
         for name, box in zip(names, boxes):
             sprite = to_sprite(cleaned.crop(box), args.size, args.body, args.colors, args.scale_mode)
@@ -358,7 +380,10 @@ def main() -> None:
             print(f"{name}: box={box} -> {args.out}/{name}_right_0..3.png")
 
     preview(frames_by_name, args.out, args.preview_scale)
-    print(f"preview: {args.out}/preview_sheet.png, {args.out}/preview_walk.gif")
+    if args.static:
+        print(f"preview: {args.out}/preview_sheet.png")
+    else:
+        print(f"preview: {args.out}/preview_sheet.png, {args.out}/preview_walk.gif")
 
 
 if __name__ == "__main__":
