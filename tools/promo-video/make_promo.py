@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """RPG Todo の紹介動画（縦 1080x1920・約44秒・SNS 用）を、アプリの素材だけで作る。
 
-    python3 tools/promo-video/make_promo.py [出力先.mp4] [--preview 秒 ...]
+    python3 tools/promo-video/make_promo.py [出力先.mp4] [--music electro|orchestra] [--preview 秒 ...]
 
 - 素材: art/sprites（キャラ）, art/backgrounds（昼・夜）, art/icon（アイコン）。
-- 絵は Pillow で1コマずつ描き、音（オーケストラ風の自作BGM）は numpy で作って、ffmpeg でまとめる。
+- 絵は Pillow で1コマずつ描き、音（電子音の自作BGM。`--music orchestra` でオーケストラ風）は numpy で作って、ffmpeg でまとめる。
 - 画面は実機のスクリーンショットではなく、アプリの見た目を再現したもの。
 """
 import math
@@ -558,7 +558,7 @@ def scene_end(t):
     cv.alpha_composite(grad)
     p = (lt - 0.3) / 0.7
     blit_center(cv, _assets["icon"], W / 2, 560, clamp01(p * 3), scale=0.46 * (0.4 + 0.6 * ease_out_back(p)))
-    img = pixel_text("RPG Todo", 12, (255, 255, 255))
+    img = pixel_text("Daily Quest", 11, (255, 255, 255))
     blit(cv, img, (W - img.width) / 2, 850 + (1 - ease_out_cubic((lt - 1.0) / 0.6)) * 30, clamp01((lt - 1.0) / 0.5))
     lay, d = layer()
     text_shadow(d, (W / 2, 1240), "Todoをクエストに変える。", 56, anchor="mm", alpha=int(255 * clamp01((lt - 1.8) / 0.6)))
@@ -688,7 +688,7 @@ PHRASE_B = [(67, 1), (72, 1), (76, 1), (72, 1), (74, 1), (71, 1), (67, 1), (71, 
 MELODY_START, OUTRO, FINALE = 4.0, 36.0, 40.0
 
 
-def build_audio(path):
+def build_audio_orchestra(path):
     total = int(DURATION * SR)
     buf = np.zeros(total)
 
@@ -760,10 +760,176 @@ def build_audio(path):
         f.writeframes(pcm.tobytes())
 
 
+# ---------------------------------------------------------------- 音（電子音のダンス風・オリジナル）
+# サイドチェーンの効いたシンセ・ベース・アルペジオ・チップ風リード・4つ打ちのキック。ピープ音の効果音は入れない。
+
+def _lp_saw(freq, dur, vol, cutoff, attack=0.01, release=0.1, detune=0.0, decay=0.0):
+    """ローパスをかけたのこぎり波（シンセ）。detune で厚みを出す。decay>0 でプラック（減衰）にする。"""
+    n = int(SR * dur)
+    x = np.arange(n) / SR
+    out = np.zeros(n)
+    for d in ((-detune, 0.0, detune) if detune else (0.0,)):
+        f = freq * (1 + d)
+        kmax = int(min(40, 0.45 * SR / f))
+        ks = np.arange(1, kmax + 1)[:, None]
+        gain = 1.0 / np.sqrt(1 + (ks * f / cutoff) ** 4)
+        out += (np.sin(2 * np.pi * f * x[None, :] * ks + d * 40) * gain / ks).sum(axis=0)
+    out /= (3 if detune else 1)
+    env = _env(n, attack, release)
+    if decay:
+        env = env * np.exp(-x * decay)
+    return out * env * vol
+
+
+def _chip(freq, dur, vol, duty=0.25, attack=0.004, release=0.05, vibrato=0.0):
+    """チップチューン風のパルス波リード。"""
+    n = int(SR * dur)
+    x = np.arange(n) / SR
+    vib = 1 + vibrato * np.sin(2 * np.pi * 5.5 * x) * np.minimum(1, x / 0.3)
+    ph = (np.cumsum(freq * vib) / SR) % 1.0
+    return np.where(ph < duty, 1.0, -1.0) * _env(n, attack, release) * vol
+
+
+def _kick(vol):
+    n = int(SR * 0.32)
+    x = np.arange(n) / SR
+    f = 46 + 130 * np.exp(-x * 32)
+    return np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-x * 11) * vol
+
+
+def _clap(vol):
+    n = int(SR * 0.2)
+    x = np.arange(n) / SR
+    noise = np.diff(np.random.default_rng(4).uniform(-1, 1, n + 1))
+    bursts = sum(np.exp(-np.clip(x - o, 0, None) * 70) * (x >= o) for o in (0.0, 0.012, 0.024))
+    return noise * (bursts * 0.4 + np.exp(-x * 22)) * vol
+
+
+def _hat(vol, open_=False):
+    n = int(SR * (0.22 if open_ else 0.05))
+    x = np.arange(n) / SR
+    noise = np.diff(np.random.default_rng(6 if open_ else 7).uniform(-1, 1, n + 1))
+    return noise * np.exp(-x * (16 if open_ else 80)) * vol
+
+
+def build_audio_electro(path):
+    total = int(DURATION * SR)
+    pad = np.zeros(total)
+    bass = np.zeros(total)
+    arp = np.zeros(total)
+    lead = np.zeros(total)
+    drums = np.zeros(total)
+    fx = np.zeros(total)
+
+    kick_times = []
+    for bar in range(int(DURATION / BAR) + 1):
+        t0 = bar * BAR
+        if t0 >= FINALE:
+            break
+        root, notes = CHORDS[(bar - 2) % 4]
+        running = t0 >= MELODY_START
+        sweep = clamp01(t0 / MELODY_START)  # 導入ではフィルターを少しずつ開く
+        # パッド（厚いのこぎり波）
+        for n in notes:
+            put(pad, t0, _lp_saw(midi_hz(n - 12), BAR + 0.2, 0.060, 700 + 1400 * sweep, attack=0.08, release=0.25, detune=0.006))
+        # アルペジオ（16分音符のプラック）
+        order = [0, 1, 2, 1, 0, 1, 2, 1, 0, 2, 1, 2, 0, 1, 2, 1]
+        for b in range(16):
+            n = notes[order[b] % 3] + (24 if b % 8 >= 4 else 12)
+            put(arp, t0 + b * BEAT / 4, _lp_saw(midi_hz(n), 0.22, 0.04 if running else 0.03,
+                                                 900 + 1900 * sweep, attack=0.003, release=0.05, decay=9))
+        if running:
+            for b in range(8):  # ベース（8分音符のうねり。裏拍で1オクターブ上げる）
+                n = root + (12 if b % 4 == 3 else 0)
+                put(bass, t0 + b * BEAT / 2, _lp_saw(midi_hz(n), BEAT / 2 * 0.92, 0.17, 520, attack=0.004, release=0.04))
+            for b in range(4):  # 4つ打ちのキックとクラップ・ハイハット
+                kt = t0 + b * BEAT
+                kick_times.append(kt)
+                put(drums, kt, _kick(0.42))
+                if b % 2 == 1:
+                    put(drums, kt, _clap(0.10))
+                put(drums, kt + BEAT / 2, _hat(0.04, open_=True))
+                put(drums, kt, _hat(0.022))
+                put(drums, kt + BEAT / 4, _hat(0.012))
+                put(drums, kt + BEAT * 3 / 4, _hat(0.012))
+        else:
+            put(fx, t0 + BAR - 1.0, np.diff(np.random.default_rng(1).uniform(-1, 1, int(SR * 1.0) + 1))
+                * np.linspace(0, 0.05, int(SR * 1.0)))  # 導入のライザー（ノイズが立ち上がる）
+
+    # リード（チップ風のパルス波。やまびこ付き）。4秒から A・B・A・B
+    t = MELODY_START
+    for ph in (PHRASE_A, PHRASE_B, PHRASE_A, PHRASE_B):
+        for note, d in ph:
+            sig = _lp_saw(midi_hz(note + 12), d * BEAT * 0.9, 0.085, 2400, attack=0.015, release=0.08, detune=0.004)
+            put(lead, t, sig)
+            put(lead, t + BEAT * 0.75, sig * 0.32)
+            t += d * BEAT
+    t = OUTRO
+    for note, d in [(64, 1), (67, 1), (72, 1), (67, 1), (62, 1), (67, 2), (71, 1)]:
+        sig = _lp_saw(midi_hz(note + 12), d * BEAT * 0.9, 0.095, 2400, attack=0.015, release=0.08, detune=0.004)
+        put(lead, t, sig)
+        put(lead, t + BEAT * 0.75, sig * 0.32)
+        t += d * BEAT
+
+    # 100% の前のライザーとドロップ、最後の和音
+    rise = int(SR * 2 * BEAT * 2)
+    put(fx, BANNER_AT - 2.0, np.diff(np.random.default_rng(12).uniform(-1, 1, rise + 1)) * np.linspace(0, 0.18, rise) ** 1.5)
+    for i in range(16):
+        put(drums, BANNER_AT - 2.0 + i * BEAT / 4 * 2, _clap(0.03 + 0.07 * i / 16))
+    boom = np.sin(2 * np.pi * 42 * np.arange(int(SR * 1.4)) / SR) * np.exp(-np.arange(int(SR * 1.4)) / SR * 2.5) * 0.5
+    for ct in (BANNER_AT, FINALE):
+        put(fx, ct, boom)
+        put(fx, ct, _clap(0.12))
+        put(drums, ct, _hat(0.07, open_=True))
+    for ct in (SCENE_RANDOM[0], SCENE_WIDGET[0], OUTRO):
+        put(fx, ct, boom * 0.35)
+    for n in (60, 64, 67, 72, 76):
+        put(pad, FINALE, _lp_saw(midi_hz(n), DURATION - FINALE + 0.5, 0.075, 3000, attack=0.05, release=1.0, detune=0.007))
+    put(bass, FINALE, _lp_saw(midi_hz(36), DURATION - FINALE + 0.5, 0.22, 420, attack=0.02, release=1.0))
+
+    # サイドチェーン: キックのたびにパッド・ベース・アルペジオの音量がへこむ（電子音楽らしいポンピング）
+    duck = np.ones(total)
+    for kt in kick_times:
+        i = int(kt * SR)
+        n = min(int(SR * BEAT), total - i)
+        if n > 0:
+            curve = 1 - 0.55 * np.exp(-np.arange(n) / SR / 0.11)
+            duck[i:i + n] = np.minimum(duck[i:i + n], curve)
+
+    wet_src = pad + arp * 0.8 + lead * 0.8 + fx
+    ir_n = int(SR * 0.9)
+    ir = np.random.default_rng(3).normal(size=ir_n) * np.exp(-np.arange(ir_n) / SR / 0.22)
+    size = 1 << (total + ir_n).bit_length()
+    wet = np.fft.irfft(np.fft.rfft(wet_src, size) * np.fft.rfft(ir, size), size)[:total]
+    wet *= np.abs(wet_src).max() / max(np.abs(wet).max(), 1e-9) * 0.5
+
+    mix = (pad + bass) * duck + arp * (0.4 + 0.6 * duck) + lead + drums + fx + wet * 0.35
+    mix *= np.clip((DURATION - np.arange(total) / SR) / 1.6, 0, 1)
+    mix = np.tanh(mix / np.abs(mix).max() * 1.5) * 0.85
+    # 高い音をなだらかに削って、耳障りにならないようにする（8kHz 付近から）
+    spec = np.fft.rfft(mix)
+    freqs = np.fft.rfftfreq(len(mix), 1 / SR)
+    mix = np.fft.irfft(spec / (1 + (freqs / 8000) ** 4), len(mix))
+    with wave.open(str(path), "wb") as f:
+        f.setnchannels(1)
+        f.setsampwidth(2)
+        f.setframerate(SR)
+        f.writeframes((mix * 32767).astype(np.int16).tobytes())
+
+
+def build_audio(path, style="electro"):
+    (build_audio_orchestra if style == "orchestra" else build_audio_electro)(path)
+
+
 # ---------------------------------------------------------------- 実行
 
 def main():
     args = sys.argv[1:]
+    style = "electro"
+    if "--music" in args:
+        i = args.index("--music")
+        style = args[i + 1]
+        del args[i:i + 2]
     load_assets()
     if "--preview" in args:
         i = args.index("--preview")
@@ -777,7 +943,7 @@ def main():
 
     out = Path(args[0]) if args else ROOT / "promo.mp4"
     wav = out.with_suffix(".wav")
-    build_audio(wav)
+    build_audio(wav, style)
     cmd = ["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}",
            "-r", str(FPS), "-i", "-", "-i", str(wav), "-c:v", "libx264", "-preset", "medium", "-crf", "18",
            "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k", "-shortest", "-movflags", "+faststart", str(out)]
