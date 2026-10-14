@@ -33,7 +33,7 @@ struct RPGTodoWidget: Widget {
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: "RPGTodoWidget", intent: ConfigurationAppIntent.self, provider: TodoWidgetProvider()) { entry in
             TodoWidgetView(entry: entry)
-                .containerBackground(for: .widget) { AdventureBackground() }
+                .containerBackground(for: .widget) { AdventureBackground(imageName: "Backgrounds/widget_day") }
         }
         .configurationDisplayName("今日の冒険")
         .description("今日のTodoの達成率とパーティを表示します。チェックをタップすると完了にできます。")

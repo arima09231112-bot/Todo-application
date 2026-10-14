@@ -5,12 +5,15 @@ import RPGTodoCore
 struct AdventureBackground: View {
     @Environment(\.colorScheme) private var colorScheme
 
+    /// 背景のアセット名。ウィジェットは画像の大きさに上限があるため、縮小版（`Backgrounds/widget_day`）を使う。
+    var imageName = "Backgrounds/home_day"
+
     /// ダークモードで背景を暗くする量（夜の背景ができるまでの代わり。要件 F-08）。
     static let nightDimming = 0.45
 
     var body: some View {
         GeometryReader { geometry in
-            Image("Backgrounds/home_day")
+            Image(imageName)
                 .resizable()
                 .scaledToFill()
                 .frame(width: geometry.size.width, height: geometry.size.height, alignment: .bottom)
