@@ -347,6 +347,76 @@ def find_sheet_characters(
     return boxes, owner
 
 
+def remove_enclosed_background(rgb: np.ndarray, fg: np.ndarray, tolerance: float = 8.0, min_area: int = 300) -> np.ndarray:
+    """キャラに囲まれて外周とつながっていない背景（翼と体のすき間など）も背景にする。
+
+    背景色とほぼ同じ色（tolerance 以内）で、min_area 以上の広さがある領域だけを対象にし、
+    目の光や白い服などの小さな／色むらのある白は残す。
+    """
+    background = estimate_background(rgb)
+    flat = fg & (np.linalg.norm(rgb.astype(float) - background, axis=2) < tolerance)
+    h, w = flat.shape
+    seen = np.zeros_like(flat)
+    out = fg.copy()
+    for sy, sx in zip(*np.nonzero(flat)):
+        if seen[sy, sx]:
+            continue
+        queue = deque([(sy, sx)])
+        seen[sy, sx] = True
+        pts = []
+        while queue:
+            y, x = queue.popleft()
+            pts.append((y, x))
+            for ny, nx in ((y + 1, x), (y - 1, x), (y, x + 1), (y, x - 1)):
+                if 0 <= ny < h and 0 <= nx < w and flat[ny, nx] and not seen[ny, nx]:
+                    seen[ny, nx] = True
+                    queue.append((ny, nx))
+        if len(pts) >= min_area:
+            ys, xs = zip(*pts)
+            out[list(ys), list(xs)] = False
+    return out
+
+
+def soften_edges(rgba: np.ndarray, background: np.ndarray, fg: np.ndarray, width: int = 2, full: float = 120.0) -> np.ndarray:
+    """背景との境目（幅 width px）を半透明にし、背景色のにじみを取り除く（高解像度の取り込み用）。
+
+    境目のピクセルは「背景色とキャラの色が混ざったもの」とみなし、背景色からの距離で不透明度を決め、
+    背景色のぶんを差し引いて本来の色に戻す。
+    """
+    near = np.zeros_like(fg)
+    bg_mask = ~fg
+    for dy in range(-width, width + 1):
+        for dx in range(-width, width + 1):
+            near |= np.roll(np.roll(bg_mask, dy, axis=0), dx, axis=1)
+    edge = fg & near
+    rgb = rgba[:, :, :3].astype(float)
+    dist = np.linalg.norm(rgb - background, axis=2)
+    alpha = np.clip(dist / full, 0.0, 1.0)
+    out = rgba.copy()
+    a = alpha[edge][:, None]
+    restored = (rgb[edge] - (1 - a) * background) / np.maximum(a, 1e-3)
+    out[edge, :3] = np.clip(restored, 0, 255).astype(np.uint8)
+    out[edge, 3] = (alpha[edge] * 255).astype(np.uint8)
+    return out
+
+
+def place_hires(crops: list[Image.Image], size: int, margin: int = 4) -> list[Image.Image]:
+    """元画像の解像度のまま（減色・輪郭なし）キャンバス中央・足元をそろえて配置する。
+
+    キャンバスに収まらないキャラがいる場合は、全キャラ同じ倍率で縮小して大きさの関係を保つ。
+    """
+    longest = max(max(c.size) for c in crops)
+    scale = min(1.0, (size - margin) / longest)
+    sprites = []
+    for crop in crops:
+        if scale < 1.0:
+            crop = crop.resize((round(crop.width * scale), round(crop.height * scale)), Image.LANCZOS)
+        canvas = Image.new("RGBA", (size, size), TRANSPARENT)
+        canvas.alpha_composite(crop, ((size - crop.width) // 2, size - crop.height - margin // 2))
+        sprites.append(canvas)
+    return sprites
+
+
 def preview(frames_by_name: dict[str, list[Image.Image]], out_dir: Path, scale: int) -> None:
     names = list(frames_by_name)
     size = frames_by_name[names[0]][0].size[0]
@@ -415,6 +485,11 @@ def main() -> None:
     parser.add_argument("--min-height", type=int, default=80, help="--sheet で、これより低い領域（名前札など）はキャラとみなさない")
     parser.add_argument("--cell-size", type=float, help="1ドットの大きさ(px)を手動で指定する（省略時は全キャラの中央値を自動検出）")
     parser.add_argument("--preview-scale", type=int, default=6)
+    parser.add_argument(
+        "--hires",
+        action="store_true",
+        help="--static と併用。ドットに変換せず、元画像の解像度のまま背景だけ透過して配置する（現行の素材）",
+    )
     args = parser.parse_args()
 
     names = [n.strip() for n in args.names.split(",") if n.strip()]
@@ -465,6 +540,19 @@ def main() -> None:
                 crops.append(Image.fromarray(piece).crop(box))
             else:
                 crops.append(cleaned.crop(box))
+        if args.hires:
+            background = estimate_background(rgb)
+            fg = remove_enclosed_background(rgb, fg)
+            soft = soften_edges(rgba, background, fg)
+            crops = [Image.fromarray(np.where(np.array(c)[:, :, 3:4] > 0, soft[y0:y1, x0:x1], 0).astype(np.uint8))
+                     for c, (x0, y0, x1, y1) in zip(crops, boxes)]
+            for name, sprite in zip(names, place_hires(crops, args.size)):
+                sprite.save(args.out / f"{name}.png")
+                frames_by_name[name] = [sprite]
+                print(f"{name} -> {args.out}/{name}.png")
+            preview(frames_by_name, args.out, args.preview_scale)
+            print(f"preview: {args.out}/preview_sheet.png")
+            return
         cell = args.cell_size
         if cell is None and args.scale_mode == "grid" and len(crops) > 1:
             cells = [detect_cell_size([image.crop(box)]) for box in boxes]

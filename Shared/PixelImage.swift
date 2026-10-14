@@ -1,9 +1,10 @@
 import SwiftUI
 import RPGTodoCore
 
-/// ドット絵の立ち姿（静止画1枚、80×80ドットのキャンバス）を、にじませずに表示する。
+/// キャラの立ち姿（静止画1枚）。素材はドット絵風のイラストを元の解像度のまま切り出したもの（256×256px）。
 ///
-/// 素材名の対応（キャラID → アセット名）はここで解決し、`RPGTodoCore` には持ち込まない。
+/// キャンバスの大きさの基準は 80pt（素材のドット 80 個分）。素材名の対応（キャラID → アセット名）は
+/// ここで解決し、`RPGTodoCore` には持ち込まない。
 struct PixelSprite: View {
     let character: CharacterID
     /// キャンバス1辺の表示サイズ（pt）。
@@ -23,8 +24,8 @@ struct PixelSprite: View {
 
     var body: some View {
         Image("Characters/\(character.rawValue)")
-            .interpolation(.none)
             .resizable()
+            .interpolation(.high)
             .frame(width: size, height: size)
             .accessibilityLabel(character.rawValue)
     }

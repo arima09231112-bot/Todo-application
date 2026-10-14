@@ -52,10 +52,11 @@ struct HomeView: View {
                     taskCard
                 }
                 .padding(.horizontal, 16)
-                .padding(.bottom, 12)
+                .padding(.bottom, 8)
                 PartyField(hero: CharacterCatalog.defaultHeroID, companions: previewCompanions)
+                    .padding(.bottom, 4)
             }
-            .background(FieldSkyBackground())
+            .background(AdventureBackground())
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { editor = .new } label: { Image(systemName: "plus") }
@@ -77,22 +78,22 @@ struct HomeView: View {
         HStack(alignment: .center, spacing: 16) {
             VStack(alignment: .leading, spacing: 6) {
                 Text(Self.dateText(today))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .font(.subheadline.weight(.semibold))
                 Text("今日の冒険")
                     .font(.largeTitle.bold())
                 Text("やることをこなして、仲間と一緒に進もう。")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .font(.footnote.weight(.medium))
             }
             Spacer(minLength: 0)
             VStack(spacing: 6) {
                 ProgressGauge(percent: percent)
                 Text(percent == nil ? "今日の冒険は準備中" : "\(completedCount) / \(todayTodos.count) タスク完了")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(.caption.weight(.semibold))
             }
         }
+        // 背景のイラストの上でも読めるよう、白い文字に影を付ける
+        .foregroundStyle(.white)
+        .shadow(color: .black.opacity(0.55), radius: 3, y: 1)
     }
 
     private var taskCard: some View {
@@ -128,6 +129,7 @@ struct HomeView: View {
                     }
                 }
                 .listStyle(.plain)
+                .scrollContentBackground(.hidden)
             }
 
             Button { editor = .new } label: {
@@ -139,8 +141,8 @@ struct HomeView: View {
             .buttonStyle(.borderedProminent)
             .padding(16)
         }
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.08), radius: 8, y: 2)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
+        .shadow(color: .black.opacity(0.12), radius: 10, y: 3)
         .frame(maxHeight: .infinity)
         .confirmationDialog(
             "繰り返しのタスクです",

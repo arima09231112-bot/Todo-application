@@ -5,7 +5,7 @@ tags:
   - project
   - ios
   - rpg-todo
-status: Phase 1 完了 → Phase 2 へ／要件 v0.9
+status: Phase 1 完了 → Phase 2 へ／要件 v0.10
 ---
 
 # RPG型Todoアプリ プロジェクトノート
@@ -16,7 +16,7 @@ status: Phase 1 完了 → Phase 2 へ／要件 v0.9
 
 - リポジトリ: https://github.com/arima09231112-bot/Todo-application
 - 作業ブランチ: `claude/rpg-todo-app-requirements-7crz4u`
-- 要件定義書（v0.9）: `docs/requirements.md`
+- 要件定義書（v0.10）: `docs/requirements.md`
 - Mac のセットアップ手順: `docs/setup.md`
 - 画面イメージ: `docs/images/concept-v1.png`
 
@@ -59,14 +59,15 @@ status: Phase 1 完了 → Phase 2 へ／要件 v0.9
 
 ## キャラ素材
 
-- 新デザイン25体の**静止画**が完成（80×80ドット、16色以内、ほぼ正面向き）。勇者は戦士（男）／戦士（女）の絵を使う。
-- ChatGPT で生成 → `tools/sprite-pipeline/` のスクリプト（`--static --sheet`）で自動整形（エディタは使わない）。1枚に多数のキャラをまとめて頼める。
+- 新デザイン25体の**静止画**が完成（ほぼ正面向き）。v0.10 で**ドットに変換せず元の解像度のまま**切り出す方式に変更（256×256px。ドット化するとぼやけたため）。勇者は戦士（男）／戦士（女）の絵を使う。
+- ホーム画面全体に、縦長の冒険背景（空・山・湖・森・草原）を敷く（`art/backgrounds/home_day.png`）。
+- ChatGPT で生成 → `tools/sprite-pipeline/` のスクリプト（`--static --sheet --hires`）で背景だけ自動で透過（エディタは使わない）。1枚に多数のキャラをまとめて頼める。
 - 素材の置き場: `art/sprites/{キャラID}.png`、Xcode 用は `Shared/Resources/Assets.xcassets`（`python3 scripts/sync_sprites.py` で同期）。旧素材は `art/archive/`。
 - 制作ルールはスキル `.claude/skills/pixel-art-character/` にまとめてある。
 
 ## 進捗
 
-- [x] 要件定義（v0.9）
+- [x] 要件定義（v0.10）
 - [x] キャラ素材 v2（新デザイン25体・静止画）
 - [x] Phase 0 のファイル一式（`project.yml`、アプリ、ウィジェット、`RPGTodoCore`）
 - [x] Phase 0 の Mac での確認（2026-10-14。iPhone で起動・App Group OK・ウィジェット表示・`swift test` 成功）

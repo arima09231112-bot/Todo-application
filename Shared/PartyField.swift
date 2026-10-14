@@ -1,68 +1,52 @@
 import SwiftUI
 import RPGTodoCore
 
-/// 冒険フィールドの配色。ホーム画面の背景のグラデーションも、フィールドの空の色に合わせる。
-enum FieldPalette {
-    /// フィールド画像の一番上の空の色。
-    static let sky = Color(red: 65 / 255, green: 169 / 255, blue: 251 / 255)
-    /// フィールド画像の下端より下（タブバーの裏）を埋める草の色。
-    static let grass = Color(red: 91 / 255, green: 156 / 255, blue: 88 / 255)
-    /// ダークモードで背景を暗くする量（MVP は昼の背景を暗めに補正して使う。要件 F-08）。
-    static let nightDimming = 0.4
+/// 冒険の背景（草原・湖・森の縦長イラスト）。画面全体に敷き、下端（キャラが立つ道）を画面下にそろえる。
+struct AdventureBackground: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    /// ダークモードで背景を暗くする量（夜の背景ができるまでの代わり。要件 F-08）。
+    static let nightDimming = 0.45
+
+    var body: some View {
+        GeometryReader { geometry in
+            Image("Backgrounds/home_day")
+                .resizable()
+                .scaledToFill()
+                .frame(width: geometry.size.width, height: geometry.size.height, alignment: .bottom)
+                .clipped()
+                .overlay(Color.black.opacity(colorScheme == .dark ? Self.nightDimming : 0))
+        }
+        .ignoresSafeArea()
+        .accessibilityHidden(true)
+    }
 }
 
-/// 冒険フィールド: 草原と森の背景に、勇者を先頭にしてパーティが横一列に立つ（要件 4.3.5）。
+/// 冒険フィールドのパーティ: 勇者を先頭にして横一列に立つ（要件 4.3.5）。背景は `AdventureBackground`。
 struct PartyField: View {
     let hero: CharacterID
     let companions: [CharacterID]
 
-    @Environment(\.colorScheme) private var colorScheme
-
-    /// 背景画像（331×110 ドット）の縦横比。
-    private static let aspect: CGFloat = 331 / 110
-    /// キャラ1体の表示サイズ（80ドットのキャンバスを 0.75 倍）。6体並べても幅 375pt の画面に収まる。
-    private static let spriteSize: CGFloat = 60
+    /// 6人並んだときに画面の幅に収まるよう、キャラの大きさと間隔を幅から決める。
+    /// 素材のキャンバスには左右に余白があるので、隣と少し重ねて並べる。
+    private static func layout(width: CGFloat) -> (size: CGFloat, spacing: CGFloat) {
+        let size = min(110, width / 4.2)
+        let spacing = (width - 8 - 6 * size) / 5
+        return (size, spacing)
+    }
 
     var body: some View {
-        HStack(spacing: 0) {
-            ForEach(Array(([hero] + companions).enumerated()), id: \.offset) { _, character in
-                PixelSprite(character: character, size: Self.spriteSize)
+        GeometryReader { geometry in
+            let (size, spacing) = Self.layout(width: geometry.size.width)
+            HStack(spacing: spacing) {
+                ForEach(Array(([hero] + companions).enumerated()), id: \.offset) { _, character in
+                    PixelSprite(character: character, size: size)
+                }
             }
+            .frame(width: geometry.size.width, height: geometry.size.height, alignment: .bottom)
         }
-        .padding(.bottom, 2)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-        .aspectRatio(Self.aspect, contentMode: .fit)
-        .background(alignment: .top) {
-            // 画像は幅に合わせて固定し、下（タブバーの裏）は草の色で埋める
-            VStack(spacing: 0) {
-                Image("Backgrounds/field_day")
-                    .interpolation(.none)
-                    .resizable()
-                    .aspectRatio(Self.aspect, contentMode: .fit)
-                FieldPalette.grass
-            }
-            .overlay(Color.black.opacity(colorScheme == .dark ? FieldPalette.nightDimming : 0))
-            .ignoresSafeArea(edges: .bottom)
-        }
+        .frame(height: 96)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(companions.isEmpty ? "勇者" : "勇者と仲間\(companions.count)人")
-    }
-}
-
-/// ホーム画面の背景: 上の白（ダーク時は黒）から、フィールドの空の青へのグラデーション。
-struct FieldSkyBackground: View {
-    @Environment(\.colorScheme) private var colorScheme
-
-    var body: some View {
-        LinearGradient(
-            colors: [
-                Color(.systemBackground),
-                FieldPalette.sky.opacity(colorScheme == .dark ? 1 - FieldPalette.nightDimming : 1),
-            ],
-            startPoint: .top,
-            endPoint: .bottom
-        )
-        .background(Color(.systemBackground))
-        .ignoresSafeArea()
     }
 }

@@ -7,7 +7,9 @@ struct ProgressGauge: View {
     var body: some View {
         ZStack {
             Circle()
-                .stroke(Color.blue.opacity(0.15), lineWidth: 10)
+                .fill(Color.black.opacity(0.35))
+            Circle()
+                .stroke(Color.white.opacity(0.25), lineWidth: 10)
             Circle()
                 .trim(from: 0, to: CGFloat(percent ?? 0) / 100)
                 .stroke(Color.blue, style: StrokeStyle(lineWidth: 10, lineCap: .round))

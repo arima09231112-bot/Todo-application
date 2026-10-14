@@ -38,3 +38,7 @@ python3 -I tools/sprite-pipeline/build_sprites.py art/source/cast_sheet_v2.png \
 - 既存キャラクターとの類似確認: 未実施（App Store 公開前に実施）。
 - 生成時のプロンプトは未記録。次回から記録する。
 - スーパースターは、新しい一覧シートの絵（キラキラつき）に置き換えた。
+
+## v0.10: 元の解像度で切り出し直し
+
+ドット化（80×80・16色）した素材はアプリで見るとぼやけたため、同じ一覧シートから**ドットに変換せず元の解像度のまま**切り出し直した（256×256px、`--hires`）。コマンドは `tools/sprite-pipeline/README.md` を参照。ドット化した版は `art/archive/static-v2-dots/` に残している。

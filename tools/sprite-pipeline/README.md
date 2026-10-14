@@ -1,6 +1,8 @@
 # sprite-pipeline
 
-ChatGPT の画像生成で作った「ドット絵風」の画像を、アプリで使えるスプライト（**立ち姿の静止画1枚**・80×80px・16色・背景透過）に**自動で**整形するスクリプトです。ドット絵エディタでの手作業は不要です。
+ChatGPT の画像生成で作った「ドット絵風」の画像から、アプリで使うキャラ素材（**立ち姿の静止画1枚**・256×256px・背景透過）を**自動で**切り出すスクリプトです。ドット絵エディタでの手作業は不要です。
+
+> **v0.10 から、ドットには変換しません**（`--hires`）。元の解像度のまま背景だけを透過します。ドットに変換する方式（80×80px・16色）は、アプリで見るとぼやけたためやめました。変換の機能はスクリプトに残っています。
 
 キャラの外見定義は `.claude/skills/pixel-art-character/references/characters.md` が正です。
 
@@ -16,34 +18,27 @@ ChatGPT の画像生成で作った「ドット絵風」の画像を、アプリ
 
 スクリプトの実行は Claude Code 側で行うため、ユーザーの作業は「生成して貼る」「確認画像を見て OK か判断する」だけです。
 
-## スクリプトの処理
+## スクリプトの処理（`--static --sheet --hires`）
 
-1. 背景の除去（画像の外周から背景色を判定。キャラ内部の白は残す）
-2. キャラごとの自動切り出し。名前札つきの一覧シートは `--sheet` で、名札を除いて行ごと・左から順に検出し、隣のキャラの絵が入り込んでいたら消す
-3. **元画像の「1ドットの大きさ」を自動検出**（複数キャラのときは全キャラの中央値で共通にし、ドット密度をそろえる）し、本来のドット数の本物のピクセルに戻す
-4. 共通パレットで 15色に減色（各ドットの中心付近の色を採用し、にじみを拾わない）
-5. 濃色1色の輪郭線を付与（輪郭色を含めて16色）
-6. 80×80 のキャンバス中央・足元をそろえて配置
-7. `{名前}.png` を出力
+1. 背景の除去（画像の外周から背景色を判定。キャラ内部の白は残す。翼と体のすき間など、囲まれた広い背景も除く）
+2. キャラごとの自動切り出し。名前札つきの一覧シートは、名札を除いて行ごと・左から順に検出し、隣のキャラの絵が入り込んでいたら消す
+3. 縁のにじみ取り（背景との境目2pxを半透明にし、背景色のぶんを差し引く）
+4. 256×256 のキャンバス中央・足元をそろえて配置（全キャラ同じ倍率。収まらないキャラがいれば全員同じ倍率で縮小）
+5. `{名前}.png` を出力
 
 ## 実行方法
 
 ```bash
-# 名前札つきの一覧シート（現行の素材 cast_sheet_v2 の変換例。名前は左上から行ごとに左→右の順）
+# 名前札つきの一覧シート（現行の素材 cast_sheet_v2 の変換。名前は左上から行ごとに左→右の順）
 python3 -I tools/sprite-pipeline/build_sprites.py art/source/cast_sheet_v2.png \
   --names warrior_m,warrior_f,swordsman_m,swordsman_f,mage_m,mage_f,archer_m,archer_f,priest_m,priest_f,thief_m,thief_f,knight_m,knight_f,ninja_m,ninja_f,summoner_m,summoner_f,superstar,slime,golem,dragon,ghost,demonlord_m,demonlord_f \
-  --static --sheet --size 80 --body 78 --tolerance 60 --out /tmp/cast
-
-# 1行に並んだ立ち姿の画像
-python3 -I tools/sprite-pipeline/build_sprites.py art/source/new_chars.png \
-  --names a,b,c --static --size 80 --body 78 --out /tmp/new
+  --static --sheet --hires --size 256 --tolerance 60 --preview-scale 1 --out /tmp/cast
 ```
 
-- 出力: `{名前}.png` と `preview_sheet.png`（確認画像）。確認してから `{名前}.png` だけを `art/sprites/` にコピーします。
-- 実行時に「全キャラ共通の1ドット≒◯px（各キャラの検出値: 最小〜最大）」と表示されます。最小と最大が大きく離れているキャラがあれば、そのキャラだけ密度が違うので再生成をおすすめします。
+- 出力: `{名前}.png` と `preview_sheet.png`（確認画像）。確認してから `{名前}.png` だけを `art/sprites/` にコピーし、`python3 scripts/sync_sprites.py` を実行します。
 - 縁に背景色のにじみが残る場合は `--tolerance` を上げ、キャラの一部が消える場合は下げます。
 - シートの一部だけを使う場合は `--crop x0,y0,x1,y1`、名前札など低い領域を除く高さは `--min-height`（既定80）で調整します。
-- `--walk-frames`（歩行4ポーズ）や `--static` なしの歩行フレーム自動生成も残してありますが、現行の仕様では使いません。
+- 背景画像（`art/backgrounds/`）は変換せず、元画像をそのまま置きます。
 
 ## ChatGPT 用プロンプト
 
