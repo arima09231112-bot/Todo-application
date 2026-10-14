@@ -29,6 +29,8 @@ struct AdventureBackground: View {
 struct PartyField: View {
     let hero: CharacterID
     let companions: [CharacterID]
+    /// 表示の高さ。ウィジェットの小サイズなど、狭い場所では小さくする。
+    var height: CGFloat = 96
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -61,7 +63,7 @@ struct PartyField: View {
             .padding(.leading, 4)
             .frame(width: geometry.size.width, height: geometry.size.height, alignment: .bottomLeading)
         }
-        .frame(height: 96)
+        .frame(height: height)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(companions.isEmpty ? "勇者" : "勇者と仲間\(companions.count)人")
     }

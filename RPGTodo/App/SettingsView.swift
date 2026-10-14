@@ -10,7 +10,7 @@ struct SettingsView: View {
             List {
                 Section {
                     ForEach(CharacterCatalog.heroes) { hero in
-                        Button { heroRaw = hero.id.rawValue } label: {
+                        Button { heroRaw = hero.id.rawValue; WidgetRefresh.request() } label: {
                             HStack {
                                 PixelSprite(character: hero.id, size: 72)
                                 Text(hero.displayName)

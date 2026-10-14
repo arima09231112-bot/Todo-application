@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import WidgetKit
 import RPGTodoCore
 
 /// 「今日のみ」か「今後すべて」か（繰り返し Todo の編集・削除で選ぶ）。
@@ -46,6 +47,13 @@ enum TodoService {
 
     private static func key(_ id: UUID, _ dayKey: Int) -> String { "\(id.uuidString)-\(dayKey)" }
 
+    /// 保存して、ウィジェットに更新を要求する。画面・ウィジェットからの操作だけで使う
+    /// （日付変更の処理は、ウィジェットの更新中にも走るので使わない）。
+    private static func commit(_ context: ModelContext) {
+        try? context.save()
+        WidgetRefresh.request()
+    }
+
     // MARK: 追加
 
     /// シートの内容から Todo を作る。繰り返しありなら、設定も一緒に作る。
@@ -76,7 +84,7 @@ enum TodoService {
             category: draft.category,
             recurrenceID: recurrenceID
         ))
-        try? context.save()
+        commit(context)
         generateRecurringTodos(through: today, in: context)
     }
 
@@ -120,7 +128,7 @@ enum TodoService {
             context.insert(recurrence)
             todo.recurrenceID = recurrence.id
         }
-        try? context.save()
+        commit(context)
     }
 
     // MARK: 削除
@@ -139,14 +147,14 @@ enum TodoService {
             }
         }
         context.delete(todo)
-        try? context.save()
+        commit(context)
     }
 
     // MARK: 完了
 
     static func toggle(_ todo: TodoItem, in context: ModelContext) {
         todo.setCompleted(!todo.isCompleted)
-        try? context.save()
+        commit(context)
     }
 
     // MARK: 今日に移す
@@ -162,7 +170,7 @@ enum TodoService {
         )
         context.insert(copy)
         todo.carriedOverTo = copy.id
-        try? context.save()
+        commit(context)
     }
 
     // MARK: 検索

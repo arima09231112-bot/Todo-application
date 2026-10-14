@@ -1,47 +1,43 @@
 import SwiftUI
 import WidgetKit
+import AppIntents
 import RPGTodoCore
 
-/// Phase 0 の動作確認用ウィジェット。Phase 3 で本実装に置き換える。
-struct PlaceholderEntry: TimelineEntry {
-    let date: Date
+/// 設定項目のないウィジェット用の空の設定（`AppIntentTimelineProvider` を使うために必要）。
+struct ConfigurationAppIntent: WidgetConfigurationIntent {
+    static let title: LocalizedStringResource = "今日の冒険"
 }
 
-struct PlaceholderProvider: TimelineProvider {
-    func placeholder(in context: Context) -> PlaceholderEntry { PlaceholderEntry(date: .now) }
+struct TodoWidgetProvider: AppIntentTimelineProvider {
+    func placeholder(in context: Context) -> TodoWidgetEntry { .sample }
 
-    func getSnapshot(in context: Context, completion: @escaping (PlaceholderEntry) -> Void) {
-        completion(PlaceholderEntry(date: .now))
+    func snapshot(for configuration: ConfigurationAppIntent, in context: Context) async -> TodoWidgetEntry {
+        if context.isPreview { return .sample }
+        return await MainActor.run { WidgetDataLoader.load() }
     }
 
-    func getTimeline(in context: Context, completion: @escaping (Timeline<PlaceholderEntry>) -> Void) {
-        completion(Timeline(entries: [PlaceholderEntry(date: .now)], policy: .never))
-    }
-}
-
-struct RPGTodoWidgetView: View {
-    var entry: PlaceholderEntry
-
-    var body: some View {
-        VStack(spacing: 4) {
-            Text("今日の冒険").font(.headline)
-            PixelSprite(character: HeroSetting.resolve(SharedContainer.defaults?.string(forKey: SettingsKey.hero) ?? ""), size: 80)
-            Text(SharedContainer.url == nil ? "App Group: 未設定" : "App Group: OK")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-        }
-        .containerBackground(.fill.tertiary, for: .widget)
+    /// 今の内容を1つ返し、次の 0:00 に作り直す（新しい日の Todo・仲間に切り替わる。要件 W-06）。
+    /// アプリや、ウィジェットのチェック操作のあとは、そちらから更新を要求する。
+    func timeline(for configuration: ConfigurationAppIntent, in context: Context) async -> Timeline<TodoWidgetEntry> {
+        let entry = await MainActor.run { WidgetDataLoader.load() }
+        let midnight = Calendar.current.nextDate(
+            after: .now,
+            matching: DateComponents(hour: 0, minute: 0),
+            matchingPolicy: .nextTime
+        ) ?? .now.addingTimeInterval(3600)
+        return Timeline(entries: [entry], policy: .after(midnight))
     }
 }
 
 struct RPGTodoWidget: Widget {
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: "RPGTodoWidget", provider: PlaceholderProvider()) { entry in
-            RPGTodoWidgetView(entry: entry)
+        AppIntentConfiguration(kind: "RPGTodoWidget", intent: ConfigurationAppIntent.self, provider: TodoWidgetProvider()) { entry in
+            TodoWidgetView(entry: entry)
+                .containerBackground(for: .widget) { AdventureBackground() }
         }
         .configurationDisplayName("今日の冒険")
-        .description("今日のTodoの達成率とパーティを表示します。")
-        .supportedFamilies([.systemSmall])
+        .description("今日のTodoの達成率とパーティを表示します。チェックをタップすると完了にできます。")
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
 }
 
