@@ -5,7 +5,7 @@ tags:
   - project
   - ios
   - rpg-todo
-status: Phase 0（Mac での動作確認中）／要件 v0.9
+status: Phase 0 完了 → Phase 1 へ／要件 v0.9
 ---
 
 # RPG型Todoアプリ プロジェクトノート
@@ -69,27 +69,21 @@ status: Phase 0（Mac での動作確認中）／要件 v0.9
 - [x] 要件定義（v0.9）
 - [x] キャラ素材 v2（新デザイン25体・静止画）
 - [x] Phase 0 のファイル一式（`project.yml`、アプリ、ウィジェット、`RPGTodoCore`）
-- [ ] Phase 0 の Mac での確認（`xcodegen` → ビルド → iPhone で実行）
+- [x] Phase 0 の Mac での確認（2026-10-14。iPhone で起動・App Group OK・ウィジェット表示・`swift test` 成功）
 - [ ] Phase 1: Todo 基本機能＋繰り返し
 - [ ] Phase 2: パーティ表示（静止画）・ランダム抽選・加入演出・図鑑の素材取り込み
 - [ ] Phase 3: ウィジェット
 - [ ] Phase 4: カレンダー連携
 - [ ] Phase 5: 記録・図鑑・仕上げ
 
-## 次にやること（Mac）
+## 次にやること
 
-1. リポジトリを Mac に取り込む（Xcode の Clone Git Repository）
-2. Mac 上で動く Claude のセッションを新しく始め、`docs/setup.md` に沿って Phase 0 を確認する
-3. `project.yml` の次の3つを自分の値に変える
-   - バンドルID（例 `com.yourname.RPGTodo`、ウィジェットは末尾に `.Widget`）
-   - App Group 名（例 `group.com.yourname.RPGTodo`）
-   - Apple ID のチームID
-4. `xcodegen` → `open RPGTodo.xcodeproj` → アプリとウィジェットで Team を選ぶ → iPhone で実行
-5. 画面に「App Group: OK」（緑）が出れば Phase 0 完了
+1. Phase 1: Todo の追加・編集・完了と繰り返しTodo（`docs/requirements.md` の Phase 1）
+2. コードを変えたら Mac で `git pull` → `xcodegen` → Xcode でスキーム `RPGTodo`・自分の iPhone を選んで ▶
+3. 共通ロジックのテストは `cd Packages/RPGTodoCore && swift test`
 
 ## 未確認・未解決
 
-- Phase 0 のビルドとテストは **まだ一度も実行していない**（作業環境に Swift がなかったため）。
 - スーパースターの確率10%・天井10回は仮の値。使いながら調整する。
 - 勇者の見た目は、有名キャラを連想させないよう「赤いハチマキ＋青緑のチュニック」に変更済み。App Store 公開前に、全キャラが既存キャラに似ていないか確認する。
 - ChatGPT で素材を生成したときのプロンプトは未記録。次回から `docs/assets-log/` に残す。
