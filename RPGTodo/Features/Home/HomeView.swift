@@ -18,8 +18,11 @@ enum EditorTarget: Identifiable {
 /// ホーム画面（今日の冒険）: 日付・達成率・タスク一覧・冒険フィールド（勇者と、日替わりの仲間）。
 struct HomeView: View {
     let today: LocalDate
+    /// 「カレンダーからの予定」カードをタップしたとき（カレンダータブへ移る）。
+    var onOpenCalendar: () -> Void = {}
 
     @Environment(\.modelContext) private var context
+    @Environment(CalendarStore.self) private var calendar
     @Query(sort: \TodoItem.createdAt) private var allTodos: [TodoItem]
     @Query private var progresses: [DailyProgress]
     @AppStorage(SettingsKey.hero, store: SharedContainer.defaults) private var heroRaw = CharacterCatalog.defaultHeroID.rawValue
@@ -82,6 +85,7 @@ struct HomeView: View {
                 VStack(spacing: 16) {
                     header
                     taskCard
+                    calendarCard
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 8)
@@ -132,6 +136,32 @@ struct HomeView: View {
         // 背景のイラストの上でも読めるよう、白い文字に影を付ける
         .foregroundStyle(.white)
         .shadow(color: .black.opacity(0.55), radius: 3, y: 1)
+    }
+
+    /// 「カレンダーからの予定」カード: 次の予定を1件表示し、タップでカレンダータブへ（C-03）。
+    private var calendarCard: some View {
+        Button(action: onOpenCalendar) {
+            HStack(spacing: 8) {
+                Image(systemName: "calendar").foregroundStyle(.blue)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("カレンダーからの予定").font(.caption.bold())
+                    Text(calendarCardText).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var calendarCardText: String {
+        guard calendar.isEnabled, calendar.hasAccess else { return "カレンダーと連携する" }
+        guard let event = calendar.nextEvent() else { return "今日・明日の予定はありません" }
+        let time = event.isAllDay ? "終日" : event.start.formatted(date: .omitted, time: .shortened)
+        return "\(time)  \(event.title)"
     }
 
     private var taskCard: some View {

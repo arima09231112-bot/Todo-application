@@ -16,6 +16,8 @@ final class TodoItem {
     var notificationEnabled: Bool
     /// 繰り返し設定から生成された場合の元ID。
     var recurrenceID: UUID?
+    /// カレンダーの予定から作られた場合の、予定の重複判定キー（`CalendarEventKey`）。
+    var calendarEventKey: String?
     /// 「今日に移す」で作られた複製先。
     var carriedOverTo: UUID?
     var createdAt: Date
@@ -39,6 +41,7 @@ final class TodoItem {
         self.completedAt = nil
         self.notificationEnabled = notificationEnabled
         self.recurrenceID = recurrenceID
+        self.calendarEventKey = nil
         self.carriedOverTo = nil
         self.createdAt = now
         self.updatedAt = now

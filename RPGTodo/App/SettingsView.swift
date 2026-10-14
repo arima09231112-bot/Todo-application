@@ -3,6 +3,7 @@ import RPGTodoCore
 
 /// 設定タブ。勇者の見た目の選択（S-07）と、動作確認用の情報。
 struct SettingsView: View {
+    @Environment(CalendarStore.self) private var calendar
     @AppStorage(SettingsKey.hero, store: SharedContainer.defaults) private var heroRaw = CharacterCatalog.defaultHeroID.rawValue
 
     var body: some View {
@@ -28,6 +29,18 @@ struct SettingsView: View {
                     Text("勇者の見た目")
                 } footer: {
                     Text("選んだ見た目は、ホームとウィジェットで勇者として表示されます。")
+                }
+                Section {
+                    Toggle("カレンダーと連携する", isOn: Binding(
+                        get: { calendar.isEnabled },
+                        set: { isOn in
+                            if isOn { Task { await calendar.enable() } } else { calendar.disable() }
+                        }
+                    ))
+                } header: {
+                    Text("カレンダー")
+                } footer: {
+                    Text("予定は読み取るだけで、変更はしません。オフにしても、iPhone の「設定」→「RPG Todo」→「カレンダー」の許可は残ります。完全に取り消すにはそちらで変更してください。")
                 }
                 Section("動作確認") {
                     Label(
