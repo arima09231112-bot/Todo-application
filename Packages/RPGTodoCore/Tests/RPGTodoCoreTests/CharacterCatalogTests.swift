@@ -9,12 +9,12 @@ struct CharacterCatalogTests {
         #expect(Set(ids).count == ids.count)
     }
 
-    @Test("勇者はちょうど1体で、仲間の抽選元に含まれない")
-    func heroIsExcludedFromPool() {
-        let heroes = CharacterCatalog.all.filter { $0.kind == .hero }
-        #expect(heroes.count == 1)
-        #expect(heroes.first?.id == CharacterCatalog.heroID)
+    @Test("勇者の見た目は戦士（男）・戦士（女）の2つで、仲間の抽選元に含まれない")
+    func heroesAreExcludedFromPool() {
+        #expect(CharacterCatalog.heroes.map(\.id) == ["warrior_m", "warrior_f"])
+        #expect(CharacterCatalog.heroes.contains { $0.id == CharacterCatalog.defaultHeroID })
         #expect(!CharacterCatalog.companionPool.contains { $0.kind == .hero })
+        #expect(CharacterCatalog.companionPool.count == 23)
     }
 
     @Test("種別ごとの人数")
@@ -22,7 +22,8 @@ struct CharacterCatalogTests {
         func count(_ kind: CharacterKind) -> Int {
             CharacterCatalog.all.filter { $0.kind == kind }.count
         }
-        #expect(count(.job) == 18)
+        #expect(count(.hero) == 2)
+        #expect(count(.job) == 16)
         #expect(count(.monster) == 4)
         #expect(count(.demonLord) == 2)
         #expect(count(.superstar) == 1)

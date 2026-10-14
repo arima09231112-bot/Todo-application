@@ -1,8 +1,9 @@
 /// キャラクターの種別。出現のしやすさ（重み）を決める。
 public enum CharacterKind: String, Sendable, Codable, CaseIterable {
-    /// 主人公（ユーザー）。常にパーティの先頭で、抽選の対象外。
+    /// 主人公（ユーザー）の見た目。戦士（男）・戦士（女）のどちらかをユーザーが選ぶ。
+    /// 常にパーティの先頭で、仲間の抽選の対象外。
     case hero
-    /// 通常の職業キャラ（戦士・剣士・魔法使い…。男女は別キャラ）。
+    /// 通常の職業キャラ（剣士・魔法使い…。男女は別キャラ）。
     case job
     /// モンスター系（スライム・ゴーレム…）。
     case monster
@@ -39,13 +40,14 @@ public struct GameCharacter: Sendable, Hashable, Identifiable {
 
 /// 全キャラクターの一覧。キャラを追加するときは `all` に1行足す（素材は `art/sprites/` に置く）。
 public enum CharacterCatalog {
-    public static let heroID: CharacterID = "hero"
+    /// 勇者の見た目の既定値（ユーザーが選ぶまではこれを使う）。
+    public static let defaultHeroID: CharacterID = "warrior_m"
 
     public static let all: [GameCharacter] = [
-        GameCharacter(id: "hero", kind: .hero, displayName: "勇者"),
+        // 勇者（ユーザーが男女どちらかを選ぶ。仲間の抽選には出ない）
+        GameCharacter(id: "warrior_m", kind: .hero, displayName: "戦士（男）"),
+        GameCharacter(id: "warrior_f", kind: .hero, displayName: "戦士（女）"),
 
-        GameCharacter(id: "warrior_m", kind: .job, displayName: "戦士（男）"),
-        GameCharacter(id: "warrior_f", kind: .job, displayName: "戦士（女）"),
         GameCharacter(id: "swordsman_m", kind: .job, displayName: "剣士（男）"),
         GameCharacter(id: "swordsman_f", kind: .job, displayName: "剣士（女）"),
         GameCharacter(id: "mage_m", kind: .job, displayName: "魔法使い（男）"),
@@ -74,7 +76,12 @@ public enum CharacterCatalog {
         GameCharacter(id: "superstar", kind: .superstar, displayName: "スーパースター"),
     ]
 
-    /// 仲間の抽選元（勇者を除く全キャラ）。重みは `CharacterKind.drawWeight`。
+    /// 勇者として選べる見た目（戦士（男）・戦士（女））。
+    public static var heroes: [GameCharacter] {
+        all.filter { $0.kind == .hero }
+    }
+
+    /// 仲間の抽選元（勇者の見た目を除く全キャラ）。重みは `CharacterKind.drawWeight`。
     public static var companionPool: [GameCharacter] {
         all.filter { $0.kind.drawWeight > 0 }
     }

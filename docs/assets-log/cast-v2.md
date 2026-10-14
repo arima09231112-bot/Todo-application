@@ -24,9 +24,9 @@ python3 -I tools/sprite-pipeline/build_sprites.py art/source/cast_sheet_v2.png \
 - 出力: `art/sprites/{id}.png`（80×80、輪郭色を含め16色）
 - 確認: 25体とも目視で、輪郭・透過・背景の残りなし。名前札は除去されている。
 
-## 勇者（仮素材）
+## 勇者
 
-新デザインの一覧に勇者がいないため、旧デザインの勇者（`art/archive/static-v1/hero.png`、48px）を 1.5 倍に拡大して 80px キャンバスに置いた**仮素材**。ドットの大きさが他のキャラと合わず粗く見える。新デザインで作り直す（要件定義書 13章）。
+勇者専用の素材は作らず、戦士（男）`warrior_m`・戦士（女）`warrior_f` を勇者として使う（v0.9）。v0.8 で置いていた仮素材 `art/sprites/hero.png` は削除した（元の旧デザインは `art/archive/static-v1/hero.png` に残っている）。
 
 ## 旧素材
 
