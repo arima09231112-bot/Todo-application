@@ -34,7 +34,7 @@ INK = (20, 24, 60)
 
 HERO = "warrior_m"
 LINEUP = ["mage_f", "slime", "knight_m", "archer_f", "priest_f"]
-COMPLETE_AT = [6.8, 8.7, 10.6, 12.5, 14.4]  # タスクを完了する時刻（20% ずつ。最後が 100%）
+COMPLETE_AT = [6.8, 8.7, 10.6, 12.5, 14.4]  # クエストを完了する時刻（20% ずつ。最後が 100%）
 BANNER_AT, SCENE_DEMO_END = 15.0, 19.0
 SCENE_RANDOM = (19.0, 27.0)
 SCENE_WIDGET = (27.0, 31.5)
@@ -53,10 +53,10 @@ RANDOM_LINEUPS = [
 ]
 RANDOM_STEP = 2.0
 
-BOOK = [  # (id, 名前, 最初から見つかっているか)
-    ("warrior_m", "アルト", True), ("mage_f", "ピピ", True), ("slime", "プルン", True),
-    ("dragon", "", False), ("knight_m", "ガルド", True), ("superstar", "カンナ", False),
-    ("ninja_f", "カエデ", True), ("demonlord_f", "", False), ("priest_f", "ハル", True),
+BOOK = [  # (id, ジョブ名, 最初から見つかっているか)
+    ("warrior_m", "戦士", True), ("mage_f", "魔法使い", True), ("slime", "スライム", True),
+    ("dragon", "", False), ("knight_m", "騎士", True), ("superstar", "スーパースター", False),
+    ("ninja_f", "忍者", True), ("demonlord_f", "", False), ("priest_f", "僧侶", True),
     ("golem", "", False), ("thief_m", "", False), ("ghost", "", False),
 ]
 SUPERSTAR_FOUND_AT = 34.6
@@ -288,7 +288,7 @@ def scene_title(t):
     cv.alpha_composite(lay)
     a1 = fade(t, 0.6, 4.6, 0.6, 0.6)
     a2 = fade(t, 1.8, 4.6, 0.6, 0.6)
-    for s, sc, y, a in (("やることを、", 9, 820, a1), ("冒険に変える。", 9, 1000, a2)):
+    for s, sc, y, a in (("Todoを", 7, 840, a1), ("クエストに変える。", 7, 990, a2)):
         img = pixel_text(s, sc, (255, 255, 255))
         blit(cv, img, (W - img.width) / 2, y + (1 - ease_out_cubic((t - 0.6) / 0.8)) * 30, a)
     return cv
@@ -318,7 +318,7 @@ def done_count(t):
 
 
 def scene_demo(t):
-    """5〜19秒: タスクを完了すると仲間が増える。100% で「全員集合！」。"""
+    """5〜19秒: クエストを完了すると仲間が増える。100% で「全員集合！」。"""
     cv = background("day", 1.0)
     dim = clamp01((t - BANNER_AT) / 0.6) * clamp01((SCENE_DEMO_END - t) / 0.4) * 0.25
     k = done_count(t)
@@ -333,9 +333,9 @@ def scene_demo(t):
     ring(d, 880, 210, 120, shown, f"{int(round(shown * 100))}%")
     text_shadow(d, (74, 270), f"5件中 {k}件 完了", 40)
 
-    # タスクカード
+    # クエストカード
     d.rounded_rectangle((60, 400, 1020, 1090), radius=44, fill=(255, 255, 255, 238))
-    d.text((110, 450), "今日のタスク", font=ui_font(46), fill=(30, 40, 70, 255))
+    d.text((110, 450), "今日のクエスト", font=ui_font(46), fill=(30, 40, 70, 255))
     for i, (title, time_) in enumerate(TASKS):
         y = 560 + i * 100
         cx, cy = 128, y + 34
@@ -364,7 +364,7 @@ def scene_demo(t):
     if a > 0:
         lay, d = layer()
         d.rounded_rectangle((90, 1150, 990, 1270), radius=60, fill=(10, 20, 50, int(170 * a)))
-        d.text((540, 1210), "タスクを終えるたび、仲間が増える", font=ui_font(54), fill=(255, 255, 255, int(255 * a)), anchor="mm")
+        d.text((540, 1210), "クエストを終えるたび、仲間が増える", font=ui_font(48), fill=(255, 255, 255, int(255 * a)), anchor="mm")
         cv.alpha_composite(lay)
 
     draw_party(cv, t, LINEUP, COMPLETE_AT, hop_from=BANNER_AT)
@@ -426,10 +426,10 @@ def widget_mock(cv, t, x, y, w, h):
     ring(d, x + 120, y + 250, 74, done / 5, f"{done * 20}%", width=16, text_size=40)
     text_shadow(d, (x + 215, y + 215), f"{done}/5 完了", 30)
     text_shadow(d, (x + 215, y + 255), f"仲間 {done}/5", 30)
-    # タスクカード
+    # クエストカード
     cx0, cy0 = x + 470, y + 26
     d.rounded_rectangle((cx0, cy0, x + w - 26, y + h - 26), radius=30, fill=(255, 255, 255, 232))
-    d.text((cx0 + 28, cy0 + 24), "今日のタスク", font=ui_font(28), fill=(30, 40, 70, 255))
+    d.text((cx0 + 28, cy0 + 24), "今日のクエスト", font=ui_font(28), fill=(30, 40, 70, 255))
     rows = [("朝のランニング", True), ("メールの返信", True), ("企画書を書く", True), ("買い物", tapped)]
     for i, (title, ok) in enumerate(rows):
         ry = cy0 + 94 + i * 68
@@ -526,7 +526,7 @@ def scene_book(t):
         if cid == "superstar" and is_found:
             pop = 1 + 0.2 * math.sin(math.pi * clamp01((t - SUPERSTAR_FOUND_AT) / 0.5))
         blit_center(card, sprite(cid, 210, silhouette=not is_found), x + 150, y + 125, 1.0, scale=pop)
-        label = ("カンナ" if cid == "superstar" else name) if is_found else "？？？"
+        label = ("スーパースター" if cid == "superstar" else name) if is_found else "？？？"
         dd.text((x + 150, y + 262), label, font=ui_font(38), fill=(30, 40, 70, 255) if is_found else (110, 116, 140, 255), anchor="mm")
         if appear < 1:
             card.putalpha(card.getchannel("A").point(lambda v: int(v * appear)))
@@ -560,7 +560,7 @@ def scene_end(t):
     img = pixel_text("RPG Todo", 12, (255, 255, 255))
     blit(cv, img, (W - img.width) / 2, 850 + (1 - ease_out_cubic((lt - 1.0) / 0.6)) * 30, clamp01((lt - 1.0) / 0.5))
     lay, d = layer()
-    text_shadow(d, (W / 2, 1240), "やることを、冒険に変える。", 56, anchor="mm", alpha=int(255 * clamp01((lt - 1.8) / 0.6)))
+    text_shadow(d, (W / 2, 1240), "Todoをクエストに変える。", 56, anchor="mm", alpha=int(255 * clamp01((lt - 1.8) / 0.6)))
     text_shadow(d, (W / 2, 1340), "iPhone アプリ", 40, anchor="mm", alpha=int(210 * clamp01((lt - 2.4) / 0.6)))
     cv.alpha_composite(lay)
     party = [HERO] + LINEUP
@@ -674,24 +674,14 @@ def build_audio(path):
         for note, d in phrases[k % 2]:
             if t >= DURATION - 1:
                 break
-            put(buf, t, tone(midi_hz(note), d * beat * 0.92, "square", 0.13, 0.25))
+            put(buf, t, tone(midi_hz(note), d * beat * 0.92, "square", 0.09, 0.25))
             t += d * beat
         k += 1
-    # 効果音
-    for c in COMPLETE_AT:
-        put(buf, c, blip([76, 83, 88], 0.07, 0.22))  # チェック
-        put(buf, c + 0.25, pop_sfx())
-    fan = [72, 76, 79, 84, 79, 84, 88]
-    for i, n in enumerate(fan):
-        put(buf, BANNER_AT + i * 0.09, tone(midi_hz(n), 0.35 if i == len(fan) - 1 else 0.1, "square", 0.22, 0.5, release=0.2))
-    for s in range(len(RANDOM_LINEUPS)):
-        for i in range(5):
-            put(buf, SCENE_RANDOM[0] + s * RANDOM_STEP + 0.1 + 0.18 * i + 0.25, pop_sfx(0.12))
-    put(buf, TAP_AT, blip([79, 86], 0.06, 0.25))
-    for n in range(6):
-        put(buf, SCENE_BOOK[0] + 0.5 + 0.16 * n, blip([84, 88], 0.05, 0.14))
-    for i, n in enumerate([84, 88, 91, 96]):
-        put(buf, SUPERSTAR_FOUND_AT + i * 0.07, tone(midi_hz(n), 0.2, "square", 0.18, 0.5, release=0.15))
+    # 効果音は最小限（ピープ音は入れない）。節目だけ、やわらかい音を小さく鳴らす。
+    for i, n in enumerate([72, 76, 79, 84]):
+        put(buf, BANNER_AT + i * 0.12, tone(midi_hz(n), 0.5 if i == 3 else 0.16, "tri", 0.16, release=0.3))
+    for i, n in enumerate([84, 91]):
+        put(buf, SUPERSTAR_FOUND_AT + i * 0.1, tone(midi_hz(n), 0.4, "tri", 0.12, release=0.3))
     # 仕上げ
     fade_out = np.clip((DURATION - np.arange(total) / SR) / 1.5, 0, 1)
     buf *= fade_out
