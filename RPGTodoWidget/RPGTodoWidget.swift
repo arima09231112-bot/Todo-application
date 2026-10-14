@@ -1,5 +1,6 @@
 import SwiftUI
 import WidgetKit
+import RPGTodoCore
 
 /// Phase 0 の動作確認用ウィジェット。Phase 3 で本実装に置き換える。
 struct PlaceholderEntry: TimelineEntry {
@@ -24,7 +25,7 @@ struct RPGTodoWidgetView: View {
     var body: some View {
         VStack(spacing: 4) {
             Text("今日の冒険").font(.headline)
-            PixelSprite(character: .hero, scale: 1)
+            PixelSprite(character: CharacterCatalog.heroID, scale: 1)
             Text(SharedContainer.url == nil ? "App Group: 未設定" : "App Group: OK")
                 .font(.caption2)
                 .foregroundStyle(.secondary)

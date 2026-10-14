@@ -189,8 +189,19 @@ def place(pixels: np.ndarray, size: int) -> Image.Image:
     return add_outline(canvas)
 
 
-def to_sprite(rgba: Image.Image, size: int, body: int, colors: int, mode: str) -> Image.Image:
-    """切り出したキャラを size x size のキャンバスに配置したスプライトにする。"""
+def to_sprite(
+    rgba: Image.Image, size: int, body: int, colors: int, mode: str, cell: float | None = None
+) -> Image.Image:
+    """切り出したキャラを size x size のキャンバスに配置したスプライトにする。
+
+    cell を渡すと、全キャラ共通の「1ドットの大きさ(px)」で取り込む（ドット密度をそろえる）。
+    """
+    if cell is not None and mode == "grid":
+        longest = max(rgba.size) / cell
+        if longest <= size - 2:
+            return place(downscale([rgba], 1 / cell, colors - 1)[0], size)
+        print(f"  共通の1ドット≒{cell:.2f}px ではキャンバスに収まらない（{longest:.0f}ドット）。このキャラだけ縮小します")
+        return place(downscale([rgba], (size - 2) / max(rgba.size), colors - 1)[0], size)
     return place(downscale([rgba], choose_scale([rgba], size, body, mode), colors - 1)[0], size)
 
 
@@ -270,6 +281,72 @@ def walk_frames(sprite: Image.Image, leg_ratio: float = 0.22) -> list[Image.Imag
     return [sprite, stride(1), sprite, stride(-1)]
 
 
+def find_sheet_characters(
+    foreground: np.ndarray, min_area: int, min_height: int
+) -> tuple[list[tuple[int, int, int, int]], np.ndarray]:
+    """名前札つきのキャラ一覧シートから、キャラを行ごと・左から順に検出する。
+
+    つながった領域（連結成分）をキャラとみなし、高さが min_height 未満のもの（名前札）と
+    面積が min_area 未満のもの（ごみ）は除く。小さな飾り（キラキラなど）は、
+    キャラの範囲内にあればそのキャラの一部として残す。
+    戻り値: (キャラの範囲のリスト, 各ピクセルがどのキャラに属するかの配列)
+    owner は -1: 背景など / -2: 小さな飾り / 0以上: キャラの番号
+    """
+    h, w = foreground.shape
+    seen = np.zeros_like(foreground)
+    comps = []
+    comp_of = np.full((h, w), -1, dtype=np.int32)
+    for sy in range(h):
+        for sx in range(w):
+            if not foreground[sy, sx] or seen[sy, sx]:
+                continue
+            queue = deque([(sy, sx)])
+            seen[sy, sx] = True
+            pts = []
+            while queue:
+                y, x = queue.popleft()
+                pts.append((y, x))
+                for dy in (-1, 0, 1):
+                    for dx in (-1, 0, 1):
+                        ny, nx = y + dy, x + dx
+                        if 0 <= ny < h and 0 <= nx < w and foreground[ny, nx] and not seen[ny, nx]:
+                            seen[ny, nx] = True
+                            queue.append((ny, nx))
+            ys = [p[0] for p in pts]
+            xs = [p[1] for p in pts]
+            box = (min(xs), min(ys), max(xs) + 1, max(ys) + 1)
+            idx = len(comps)
+            comps.append((box, len(pts)))
+            for y, x in pts:
+                comp_of[y, x] = idx
+
+    keep = [i for i, (box, area) in enumerate(comps) if area >= min_area and box[3] - box[1] >= min_height]
+    if not keep:
+        return [], comp_of
+    # 行にまとめる: 縦の中心が近いものを同じ行とし、行の中では左から順にする
+    heights = sorted(comps[i][0][3] - comps[i][0][1] for i in keep)
+    row_gap = heights[len(heights) // 2] * 0.6
+    keep.sort(key=lambda i: (comps[i][0][1] + comps[i][0][3]) / 2)
+    rows: list[list[int]] = []
+    for i in keep:
+        center = (comps[i][0][1] + comps[i][0][3]) / 2
+        if rows and abs(center - np.mean([(comps[j][0][1] + comps[j][0][3]) / 2 for j in rows[-1]])) <= row_gap:
+            rows[-1].append(i)
+        else:
+            rows.append([i])
+    ordered = [i for row in rows for i in sorted(row, key=lambda i: comps[i][0][0])]
+
+    owner = np.full((h, w), -1, dtype=np.int32)
+    boxes = []
+    small = {i for i, (box, area) in enumerate(comps) if i not in keep and area < min_area and box[3] - box[1] < min_height}
+    for number, i in enumerate(ordered):
+        boxes.append(comps[i][0])
+        owner[comp_of == i] = number
+    for i in small:
+        owner[comp_of == i] = -2
+    return boxes, owner
+
+
 def preview(frames_by_name: dict[str, list[Image.Image]], out_dir: Path, scale: int) -> None:
     names = list(frames_by_name)
     size = frames_by_name[names[0]][0].size[0]
@@ -330,6 +407,13 @@ def main() -> None:
         action="store_true",
         help="立ち姿の静止画1枚だけを {名前}.png として出力する（歩行フレームは作らない。複数キャラが並んだ画像向け）",
     )
+    parser.add_argument(
+        "--sheet",
+        action="store_true",
+        help="名前札つきのキャラ一覧シート（複数行）から、行ごと・左から順にキャラを切り出す（--static と併用）",
+    )
+    parser.add_argument("--min-height", type=int, default=80, help="--sheet で、これより低い領域（名前札など）はキャラとみなさない")
+    parser.add_argument("--cell-size", type=float, help="1ドットの大きさ(px)を手動で指定する（省略時は全キャラの中央値を自動検出）")
     parser.add_argument("--preview-scale", type=int, default=6)
     args = parser.parse_args()
 
@@ -340,7 +424,13 @@ def main() -> None:
     rgb = np.array(image)[:, :, :3]
     fg = ~background_mask(rgb, args.tolerance)
 
-    boxes = find_characters(fg, args.min_area)
+    owner = None
+    if args.sheet:
+        if not args.static:
+            raise SystemExit("--sheet は --static と一緒に指定してください")
+        boxes, owner = find_sheet_characters(fg, args.min_area, args.min_height)
+    else:
+        boxes = find_characters(fg, args.min_area)
     if args.static and args.walk_frames:
         raise SystemExit("--static と --walk-frames は同時に指定できません")
     if args.walk_frames:
@@ -365,11 +455,26 @@ def main() -> None:
         frames_by_name[name] = frames
         print(f"{name}: {len(frames)} frames from {boxes} -> {args.out}/{name}_right_0..{len(frames) - 1}.png")
     elif args.static:
-        for name, box in zip(names, boxes):
-            sprite = to_sprite(cleaned.crop(box), args.size, args.body, args.colors, args.scale_mode)
+        crops = []
+        for number, box in enumerate(boxes):
+            if owner is not None:
+                # 他のキャラの絵が範囲に入り込んでいたら消す
+                mine = (owner == number) | (owner == -2)
+                piece = rgba.copy()
+                piece[~mine] = TRANSPARENT
+                crops.append(Image.fromarray(piece).crop(box))
+            else:
+                crops.append(cleaned.crop(box))
+        cell = args.cell_size
+        if cell is None and args.scale_mode == "grid" and len(crops) > 1:
+            cells = [detect_cell_size([image.crop(box)]) for box in boxes]
+            cell = float(np.median(cells))
+            print(f"全キャラ共通の1ドット≒{cell:.2f}px（各キャラの検出値: {min(cells):.2f}〜{max(cells):.2f}）")
+        for name, crop in zip(names, crops):
+            sprite = to_sprite(crop, args.size, args.body, args.colors, args.scale_mode, cell)
             sprite.save(args.out / f"{name}.png")
             frames_by_name[name] = [sprite]
-            print(f"{name}: box={box} -> {args.out}/{name}.png")
+            print(f"{name} -> {args.out}/{name}.png")
     else:
         for name, box in zip(names, boxes):
             sprite = to_sprite(cleaned.crop(box), args.size, args.body, args.colors, args.scale_mode)

@@ -1,22 +1,24 @@
-/// ゲームに登場するキャラクターの識別子。
+/// キャラクターの識別子（例: `"warrior_m"`）。
 ///
 /// 画像名や描画の情報は持たない（素材との対応はアプリ側で解決する）。
-/// 値は `art/sprites/` のファイル名（`{rawValue}.png`）と一致させる。
-///
-/// 注意: キャラは今後も増える予定のため、Phase 2 でデータ駆動のカタログ
-/// （キャラID・表示名・種別をデータで持つ）に置き換える。
-public enum CharacterID: String, CaseIterable, Sendable, Codable {
-    case hero
-    case swordsman
-    case mage
-    case priest
-    case thief
-    case knight
-    case superstar
+/// 値は `art/sprites/{rawValue}.png` のファイル名と一致させる。
+/// キャラは今後も増えるため、enum ではなく文字列で持つ（追加は `CharacterCatalog` に1行足すだけ）。
+public struct CharacterID: RawRepresentable, Hashable, Sendable, Codable,
+    ExpressibleByStringLiteral, CustomStringConvertible
+{
+    public let rawValue: String
 
-    /// 達成率の節目で加わる「仲間」の抽選元（勇者とレアキャラのスーパースターは含まない）。
-    /// 誰がどの順で加わるかは日ごとのランダム抽選で決まる（要件定義書 4.3.1a）。
-    public static var companionPool: [CharacterID] {
-        allCases.filter { $0 != .hero && $0 != .superstar }
+    public init(rawValue: String) { self.rawValue = rawValue }
+    public init(stringLiteral value: String) { self.rawValue = value }
+
+    public init(from decoder: any Decoder) throws {
+        rawValue = try decoder.singleValueContainer().decode(String.self)
     }
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
+    }
+
+    public var description: String { rawValue }
 }
