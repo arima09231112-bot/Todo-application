@@ -3,7 +3,7 @@
 name: RPGTodo
 
 options:
-  bundleIdPrefix: com.example      # ← 自分の逆ドメインに変更する（README 参照）
+  bundleIdPrefix: com.arimayuuki      # ← 自分の逆ドメインに変更する（README 参照）
   deploymentTarget:
     iOS: "26.0"
   createIntermediateGroups: true
@@ -17,7 +17,7 @@ settings:
     CODE_SIGN_STYLE: Automatic
     TARGETED_DEVICE_FAMILY: "1"    # iPhone のみ
     # アプリとウィジェットで SwiftData / UserDefaults を共有するための App Group
-    APP_GROUP_ID: group.com.example.RPGTodo
+    APP_GROUP_ID: group.com.arimayuuki.RPGTodo
 
 packages:
   RPGTodoCore:
@@ -35,7 +35,7 @@ targets:
       - target: RPGTodoWidget
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.example.RPGTodo
+        PRODUCT_BUNDLE_IDENTIFIER: com.arimayuuki.RPGTodo
         GENERATE_INFOPLIST_FILE: NO
     info:
       path: Config/RPGTodo-Info.plist
@@ -60,7 +60,7 @@ targets:
       - package: RPGTodoCore
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.example.RPGTodo.Widget
+        PRODUCT_BUNDLE_IDENTIFIER: com.arimayuuki.RPGTodo.Widget
         GENERATE_INFOPLIST_FILE: NO
         SKIP_INSTALL: YES
     info:

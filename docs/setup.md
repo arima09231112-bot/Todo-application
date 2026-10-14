@@ -24,7 +24,7 @@ open RPGTodo.xcodeproj
 
 1. Xcode で `RPGTodo` と `RPGTodoWidget` の両方のターゲットで、Signing & Capabilities の Team を選ぶ
 2. 実機の iPhone をつなぎ、スキーム `RPGTodo` を実行する
-3. 画面に「今日の冒険」と7体のキャラが出て、**「App Group: OK」（緑）**と表示されれば成功
+3. 画面に「今日の冒険」と25体のキャラが出て、**「App Group: OK」（緑）**と表示されれば成功
 4. ホーム画面を長押し →「＋」→「RPG Todo」→ 小サイズを追加し、勇者の画像と「App Group: OK」が出れば成功
 
 「App Group: 未設定」（赤）と出る場合は、アプリとウィジェットの両方で Signing & Capabilities に App Groups が入っていて、同じグループ名にチェックが付いているか確認してください。
