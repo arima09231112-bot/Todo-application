@@ -62,6 +62,7 @@ struct TodoEditorSheet: View {
                     }
                 }
             }
+            .adventureScreenBackground()
             .navigationTitle(editingTodo == nil ? "新しいクエスト" : "クエストを編集")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

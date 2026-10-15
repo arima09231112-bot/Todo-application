@@ -67,6 +67,7 @@ struct SettingsView: View {
                     .foregroundStyle(SharedContainer.url == nil ? Color.red : Color.green)
                 }
             }
+            .adventureScreenBackground()
             .navigationTitle("設定")
             .navigationBarTitleDisplayMode(.inline)
         }

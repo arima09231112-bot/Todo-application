@@ -43,6 +43,7 @@ struct CalendarView: View {
                     list
                 }
             }
+            .adventureScreenBackground()
             .navigationTitle("カレンダー")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

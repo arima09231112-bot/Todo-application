@@ -39,7 +39,7 @@ struct RecordsView: View {
                 }
                 .padding(16)
             }
-            .background(Color(.systemGroupedBackground))
+            .adventureScreenBackground()
             .navigationTitle("冒険の記録")
             .navigationBarTitleDisplayMode(.inline)
         }
@@ -260,6 +260,7 @@ struct DayDetailView: View {
                     }
                 }
             }
+            .adventureScreenBackground()
             .navigationTitle(date.shortText)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

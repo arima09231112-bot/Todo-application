@@ -61,7 +61,7 @@ struct EncyclopediaView: View {
                 }
                 .padding(16)
             }
-            .background(Color(.systemGroupedBackground))
+            .adventureScreenBackground()
             .navigationTitle("キャラクター図鑑")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -195,6 +195,7 @@ struct CharacterDetailView: View {
                 }
                 .padding(20)
             }
+            .adventureScreenBackground(scrim: 0.7)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {

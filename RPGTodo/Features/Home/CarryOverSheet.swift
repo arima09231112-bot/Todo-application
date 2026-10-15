@@ -38,6 +38,7 @@ struct CarryOverSheet: View {
                     }
                 }
             }
+            .adventureScreenBackground()
             .navigationTitle("未完了のクエスト")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

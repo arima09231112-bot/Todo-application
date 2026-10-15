@@ -41,6 +41,8 @@ struct HomeView: View {
     @State private var starShowerID: UUID?
     @State private var showAssembledBanner = false
     @State private var questClearID: UUID?
+    /// クエストを完了するたびに増やす（パーティが小さく跳ねる）。
+    @State private var hopCount = 0
 
     // MARK: 集計
 
@@ -93,12 +95,9 @@ struct HomeView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 8)
-                PartyField(hero: hero, companions: shownCompanions)
+                // キャラをタップすると、ジャンプしてひとこと（図鑑は左上のボタンから）
+                PartyField(hero: hero, companions: shownCompanions, isLively: true, hopTrigger: hopCount)
                     .padding(.bottom, 4)
-                    .contentShape(Rectangle())
-                    .onTapGesture { showEncyclopedia = true }
-                    .accessibilityAddTraits(.isButton)
-                    .accessibilityHint("キャラクター図鑑を開きます")
             }
             .overlay { effects }
             .background(AdventureBackground())
@@ -381,7 +380,9 @@ struct HomeView: View {
     private func toggle(_ todo: TodoItem) {
         let completing = !todo.isCompleted
         TodoService.toggle(todo, in: context)
-        if completing && appearance == .rpg { playQuestClear() }
+        guard completing else { return }
+        hopCount += 1
+        if appearance == .rpg { playQuestClear() }
     }
 
     private func requestDelete(_ todo: TodoItem) {
