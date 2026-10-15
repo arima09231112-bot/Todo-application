@@ -4,7 +4,7 @@ import RPGTodoCore
 
 /// ウィジェットのチェックをタップしたときの処理。アプリを開かずに完了を切り替える（要件 W-04）。
 struct ToggleTodoIntent: AppIntent {
-    static let title: LocalizedStringResource = "Todoの完了を切り替える"
+    static let title: LocalizedStringResource = "クエストの完了を切り替える"
 
     @Parameter(title: "Todo ID")
     var todoID: String

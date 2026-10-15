@@ -36,7 +36,7 @@ struct RPGTodoWidget: Widget {
                 .containerBackground(for: .widget) { AdventureBackground(isWidget: true) }
         }
         .configurationDisplayName("今日の冒険")
-        .description("今日のTodoの達成率とパーティを表示します。チェックをタップすると完了にできます。")
+        .description("今日のクエストの達成率とパーティを表示します。チェックをタップすると完了にできます。")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
 }

@@ -15,6 +15,7 @@ struct RootView: View {
     @State private var today = LocalDate(.now)
     @State private var selection = AppTab.home
     @State private var calendar = CalendarStore()
+    @AppStorage(SettingsKey.appearance, store: SharedContainer.defaults) private var appearance = AppearanceStyle.simple
 
     var body: some View {
         TabView(selection: $selection) {
@@ -33,6 +34,7 @@ struct RootView: View {
         }
         .tint(.blue)
         .environment(calendar)
+        .environment(\.appearance, appearance)
         .task {
             refreshDay()
             calendar.refresh()

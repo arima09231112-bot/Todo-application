@@ -9,23 +9,21 @@ struct TodoWidgetView: View {
     @Environment(\.widgetFamily) private var family
 
     var body: some View {
-        switch family {
-        case .systemSmall:
-            SmallLayout(entry: entry)
-        case .systemMedium:
-            WideLayout(entry: entry, limit: 4, ringSize: 44, fullWidthParty: false, partyHeight: 44)
-        default:
-            WideLayout(entry: entry, limit: 8, ringSize: 76, fullWidthParty: true, partyHeight: 96)
+        Group {
+            switch family {
+            case .systemSmall:
+                SmallLayout(entry: entry)
+            case .systemMedium:
+                WideLayout(entry: entry, limit: 4, ringSize: 44, fullWidthParty: false, partyHeight: 44)
+            default:
+                WideLayout(entry: entry, limit: 8, ringSize: 76, fullWidthParty: true, partyHeight: 96)
+            }
         }
+        .environment(\.appearance, entry.appearance)
     }
 }
 
 private extension View {
-    /// 背景のイラストの上でも読めるよう、半透明のカードに載せる。
-    func widgetCard() -> some View {
-        background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-    }
-
     /// 背景の絵の上に直接置く文字（白＋影）。
     func onArt() -> some View {
         foregroundStyle(.white).shadow(color: .black.opacity(0.7), radius: 2, y: 1)
@@ -38,17 +36,19 @@ private struct WidgetRing: View {
     let text: String
     let size: CGFloat
 
+    @Environment(\.appearance) private var appearance
+
     var body: some View {
         let line = max(4, size * 0.12)
         ZStack {
-            Circle().fill(Color.black.opacity(0.45))
+            Circle().fill(appearance == .rpg ? RPGPalette.window.opacity(0.85) : Color.black.opacity(0.45))
             Circle().stroke(Color.white.opacity(0.25), lineWidth: line)
             Circle()
                 .trim(from: 0, to: fraction)
-                .stroke(Color.blue, style: StrokeStyle(lineWidth: line, lineCap: .round))
+                .stroke(appearance.accent, style: StrokeStyle(lineWidth: line, lineCap: appearance == .rpg ? .butt : .round))
                 .rotationEffect(.degrees(-90))
             Text(text)
-                .font(.system(size: size * 0.27, weight: .bold, design: .rounded))
+                .font(appearance.font(size: size * 0.27, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
                 .minimumScaleFactor(0.6)
                 .lineLimit(1)
@@ -68,12 +68,14 @@ private struct TitleBlock: View {
     let entry: TodoWidgetEntry
     let titleSize: CGFloat
 
+    @Environment(\.appearance) private var appearance
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(entry.date, format: .dateTime.month().day().weekday(.abbreviated))
-                .font(.caption2.bold())
+                .font(appearance.font(.caption2, weight: .bold))
             Text("今日の冒険")
-                .font(.system(size: titleSize, weight: .heavy))
+                .font(appearance.font(size: titleSize, weight: .heavy))
                 .minimumScaleFactor(0.7)
                 .lineLimit(1)
         }
@@ -86,12 +88,14 @@ private struct StatsBlock: View {
     let entry: TodoWidgetEntry
     let ringSize: CGFloat
 
+    @Environment(\.appearance) private var appearance
+
     var body: some View {
         HStack(spacing: 6) {
             WidgetRing(fraction: entry.fraction, text: entry.percentText, size: ringSize)
             VStack(alignment: .leading, spacing: 2) {
-                Text(entry.countText).font(.caption2.bold())
-                Label(entry.partyText, systemImage: "person.3.fill").font(.caption2.bold())
+                Text(entry.countText).font(appearance.font(.caption2, weight: .bold))
+                Label(entry.partyText, systemImage: "person.3.fill").font(appearance.font(.caption2, weight: .bold))
             }
             .onArt()
             .minimumScaleFactor(0.7)
@@ -104,12 +108,14 @@ private struct StatsBlock: View {
 private struct SmallLayout: View {
     let entry: TodoWidgetEntry
 
+    @Environment(\.appearance) private var appearance
+
     var body: some View {
         VStack(spacing: 2) {
-            Text("今日の冒険").font(.system(size: 17, weight: .heavy)).onArt()
+            Text("今日の冒険").font(appearance.font(size: 17, weight: .heavy)).onArt()
             WidgetRing(fraction: entry.fraction, text: entry.percentText, size: 50)
-            Text("\(entry.total == 0 ? "準備中" : "\(entry.completed)/\(entry.total) 完了") ・ \(entry.partyText)")
-                .font(.system(size: 10, weight: .bold))
+            Text("\(entry.total == 0 ? "準備中" : "\(entry.completed)/\(entry.total) 達成") ・ \(entry.partyText)")
+                .font(appearance.font(size: 10, weight: .bold))
                 .minimumScaleFactor(0.6)
                 .lineLimit(1)
                 .onArt()
@@ -119,7 +125,7 @@ private struct SmallLayout: View {
     }
 }
 
-/// 中・大: 左に見出し・ゲージ・パーティ、右に「今日のタスク」カード（完成イメージ準拠）。
+/// 中・大: 左に見出し・ゲージ・パーティ、右に「今日のクエスト」カード（完成イメージ準拠）。
 /// 大は、パーティを下いっぱいに広げる。
 private struct WideLayout: View {
     let entry: TodoWidgetEntry
@@ -159,30 +165,32 @@ private struct WideLayout: View {
     }
 }
 
-/// 「今日のタスク」のカード。
+/// 「今日のクエスト」のカード。シンプルは半透明、RPG はウィンドウ。
 private struct TaskCard: View {
     let entry: TodoWidgetEntry
     let limit: Int
 
+    @Environment(\.appearance) private var appearance
+
     var body: some View {
         let (shown, hidden) = entry.visibleTodos(limit: limit)
         VStack(alignment: .leading, spacing: 4) {
-            Text("今日のタスク").font(.caption.bold())
+            Text(appearance == .rpg ? "▶ 今日のクエスト" : "今日のクエスト").font(appearance.font(.caption, weight: .bold))
             if let message = entry.errorMessage {
                 Text(message).font(.system(size: 9)).foregroundStyle(.secondary)
             } else if shown.isEmpty {
-                Text("今日の冒険は準備中").font(.caption).foregroundStyle(.secondary)
+                Text("今日の冒険は準備中").font(appearance.font(.caption)).foregroundStyle(.secondary)
             } else {
                 ForEach(shown) { TodoLine(todo: $0) }
                 if hidden > 0 {
-                    Text("ほか \(hidden) 件").font(.caption2).foregroundStyle(.secondary)
+                    Text("ほか \(hidden) 件").font(appearance.font(.caption2)).foregroundStyle(.secondary)
                 }
             }
             Spacer(minLength: 0)
         }
-        .padding(8)
+        .padding(appearance == .rpg ? 11 : 8)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .widgetCard()
+        .themedCard(appearance, cornerRadius: 14)
     }
 }
 
@@ -190,17 +198,19 @@ private struct TaskCard: View {
 private struct TodoLine: View {
     let todo: WidgetTodo
 
+    @Environment(\.appearance) private var appearance
+
     var body: some View {
         HStack(spacing: 5) {
             Button(intent: ToggleTodoIntent(todoID: todo.id.uuidString)) {
                 Image(systemName: todo.isCompleted ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 17))
-                    .foregroundStyle(todo.isCompleted ? Color.blue : Color.secondary)
+                    .foregroundStyle(todo.isCompleted ? appearance.accent : Color.secondary)
             }
             .buttonStyle(.plain)
 
             Text(todo.title)
-                .font(.caption)
+                .font(appearance.font(.caption))
                 .strikethrough(todo.isCompleted)
                 .foregroundStyle(todo.isCompleted ? Color.secondary : Color.primary)
                 .lineLimit(1)

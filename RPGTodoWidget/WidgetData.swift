@@ -23,6 +23,8 @@ struct TodoWidgetEntry: TimelineEntry, Sendable {
     let total: Int
     /// 今日の Todo（時刻順）。
     let todos: [WidgetTodo]
+    /// 見た目（シンプル／RPG）。
+    var appearance: AppearanceStyle = .simple
     /// 読み込みに失敗したときの内容（画面に出して原因を調べられるようにする）。
     var errorMessage: String? = nil
 
@@ -38,7 +40,7 @@ struct TodoWidgetEntry: TimelineEntry, Sendable {
     /// 達成した仲間の人数（勇者を含まない、0〜5）。
     var companionCount: Int { companions.count }
 
-    var countText: String { total == 0 ? "今日の冒険は準備中" : "\(completed)/\(total) タスク完了" }
+    var countText: String { total == 0 ? "今日の冒険は準備中" : "\(completed)/\(total) クエスト達成" }
 
     var percentText: String { percent.map { "\($0)%" } ?? "--" }
 
@@ -103,7 +105,8 @@ enum WidgetDataLoader {
                     timeText: $0.timeMinutes.map { String(format: "%d:%02d", $0 / 60, $0 % 60) },
                     isCompleted: $0.isCompleted
                 )
-            }
+            },
+            appearance: AppearanceStyle.resolve(SharedContainer.defaults?.string(forKey: SettingsKey.appearance))
         )
     }
 }

@@ -24,7 +24,7 @@ struct TodoEditorSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("タスク名", text: $draft.title)
+                    TextField("クエスト名", text: $draft.title)
                         .focused($titleFocused)
                         .submitLabel(.done)
                         .onSubmit(save)
@@ -54,7 +54,7 @@ struct TodoEditorSheet: View {
                 if let todo = editingTodo {
                     Section {
                         Button("削除", role: .destructive) { requestDelete(todo) }
-                            .confirmationDialog("繰り返しのタスクです", isPresented: $askDeleteScope, titleVisibility: .visible) {
+                            .confirmationDialog("繰り返しのクエストです", isPresented: $askDeleteScope, titleVisibility: .visible) {
                                 Button("この日だけ削除", role: .destructive) { delete(todo, scope: .thisDayOnly) }
                                 Button("繰り返しを終了して削除", role: .destructive) { delete(todo, scope: .allFuture) }
                                 Button("キャンセル", role: .cancel) {}
@@ -62,7 +62,7 @@ struct TodoEditorSheet: View {
                     }
                 }
             }
-            .navigationTitle(editingTodo == nil ? "新しいタスク" : "タスクを編集")
+            .navigationTitle(editingTodo == nil ? "新しいクエスト" : "クエストを編集")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -73,7 +73,7 @@ struct TodoEditorSheet: View {
                         .disabled(!draft.isValid)
                 }
             }
-            .confirmationDialog("繰り返しのタスクです", isPresented: $askSaveScope, titleVisibility: .visible) {
+            .confirmationDialog("繰り返しのクエストです", isPresented: $askSaveScope, titleVisibility: .visible) {
                 Button("この日だけ変更") { commitEdit(scope: .thisDayOnly) }
                 Button("今後すべて変更") { commitEdit(scope: .allFuture) }
                 Button("キャンセル", role: .cancel) {}

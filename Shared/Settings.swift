@@ -6,6 +6,8 @@ import WidgetKit
 enum SettingsKey {
     /// 勇者の見た目（`warrior_m` または `warrior_f`）。
     static let hero = "heroCharacterID"
+    /// 見た目（`simple` または `rpg`。`AppearanceStyle`）。
+    static let appearance = "appearanceStyle"
 }
 
 enum HeroSetting {

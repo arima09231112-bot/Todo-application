@@ -41,12 +41,13 @@ targets:
     info:
       path: Config/RPGTodo-Info.plist
       properties:
-        CFBundleDisplayName: RPG Todo
+        CFBundleDisplayName: Daily Quest
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UIRequiresFullScreen: true          # 縦向き専用のため（Xcode の警告対策）
         AppGroupID: $(APP_GROUP_ID)
-        NSCalendarsFullAccessUsageDescription: 予定からTodo候補を作るために、カレンダーを読み取ります（予定は変更しません）。
+        UIAppFonts: [DotGothic16-Regular.ttf]   # RPG の見た目のドット風フォント（Shared/Resources/Fonts）
+        NSCalendarsFullAccessUsageDescription: 予定からクエスト候補を作るために、カレンダーを読み取ります（予定は変更しません）。
     entitlements:
       path: Config/RPGTodo.entitlements
       properties:
@@ -68,8 +69,9 @@ targets:
     info:
       path: Config/RPGTodoWidget-Info.plist
       properties:
-        CFBundleDisplayName: RPG Todo
+        CFBundleDisplayName: Daily Quest
         AppGroupID: $(APP_GROUP_ID)
+        UIAppFonts: [DotGothic16-Regular.ttf]
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     entitlements:

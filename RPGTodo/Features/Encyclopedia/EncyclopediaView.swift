@@ -87,7 +87,7 @@ struct EncyclopediaView: View {
         let count = CompletionRate.companionCount(percent: CompletionRate.percent(completed: completed, total: total))
         let remaining = CompletionRate.tasksUntilNextCompanion(completed: completed, total: total)
         let message: String = if total == 0 {
-            "まずは今日のタスクを追加しよう"
+            "まずは今日のクエストを追加しよう"
         } else if let remaining {
             "あと\(remaining)件で新しい仲間が加わる（誰かはお楽しみ）"
         } else {
