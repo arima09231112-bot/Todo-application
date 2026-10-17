@@ -41,11 +41,11 @@ private struct WidgetRing: View {
     var body: some View {
         let line = max(4, size * 0.12)
         ZStack {
-            Circle().fill(appearance == .rpg ? RPGPalette.window.opacity(0.85) : Color.black.opacity(0.45))
+            Circle().fill(appearance.gaugeDisc)
             Circle().stroke(Color.white.opacity(0.25), lineWidth: line)
             Circle()
                 .trim(from: 0, to: fraction)
-                .stroke(appearance.accent, style: StrokeStyle(lineWidth: line, lineCap: appearance == .rpg ? .butt : .round))
+                .stroke(appearance.accent, style: StrokeStyle(lineWidth: line, lineCap: appearance.isRPG ? .butt : .round))
                 .rotationEffect(.degrees(-90))
             Text(text)
                 .font(appearance.font(size: size * 0.27, weight: .bold, design: .rounded))
@@ -175,7 +175,7 @@ private struct TaskCard: View {
     var body: some View {
         let (shown, hidden) = entry.visibleTodos(limit: limit)
         VStack(alignment: .leading, spacing: 4) {
-            Text(appearance == .rpg ? "▶ 今日のクエスト" : "今日のクエスト").font(appearance.font(.caption, weight: .bold))
+            Text("今日のクエスト").font(appearance.font(.caption, weight: .bold))
             if let message = entry.errorMessage {
                 Text(message).font(.system(size: 9)).foregroundStyle(.secondary)
             } else if shown.isEmpty {
@@ -188,7 +188,7 @@ private struct TaskCard: View {
             }
             Spacer(minLength: 0)
         }
-        .padding(appearance == .rpg ? 11 : 8)
+        .padding(appearance.isRPG ? 11 : 8)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .themedCard(appearance, cornerRadius: 14)
     }
@@ -205,14 +205,14 @@ private struct TodoLine: View {
             Button(intent: ToggleTodoIntent(todoID: todo.id.uuidString)) {
                 Image(systemName: todo.isCompleted ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 17))
-                    .foregroundStyle(todo.isCompleted ? appearance.accent : Color.secondary)
+                    .foregroundStyle(todo.isCompleted ? appearance.cardAccent : appearance.inkSecondary)
             }
             .buttonStyle(.plain)
 
             Text(todo.title)
                 .font(appearance.font(.caption))
                 .strikethrough(todo.isCompleted)
-                .foregroundStyle(todo.isCompleted ? Color.secondary : Color.primary)
+                .foregroundStyle(todo.isCompleted ? appearance.inkSecondary : appearance.ink)
                 .lineLimit(1)
             Spacer(minLength: 0)
         }

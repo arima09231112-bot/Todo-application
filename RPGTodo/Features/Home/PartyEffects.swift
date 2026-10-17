@@ -7,13 +7,16 @@ struct AllAssembledBanner: View {
     var body: some View {
         Text("全員集合！")
             .font(appearance.font(.title, weight: .heavy))
-            .foregroundStyle(.white)
+            .foregroundStyle(appearance.isRPG ? appearance.ink : .white)
             .padding(.horizontal, 28)
             .padding(.vertical, 10)
             .background {
-                if appearance == .rpg {
+                switch appearance {
+                case .rpg:
                     RPGWindowBackground(opacity: 0.95)
-                } else {
+                case .rpgWood:
+                    RPGWoodBoardBackground(opacity: 0.95)
+                case .simple:
                     Capsule().fill(Color.blue.gradient)
                         .overlay(Capsule().stroke(.white.opacity(0.8), lineWidth: 2))
                 }
@@ -25,13 +28,21 @@ struct AllAssembledBanner: View {
 
 /// RPG の見た目で、クエストを完了したときに一瞬出る「クエスト達成！」。
 struct QuestClearBanner: View {
+    @Environment(\.appearance) private var appearance
+
     var body: some View {
         Text("クエスト達成！")
-            .font(AppearanceStyle.rpg.font(.title3))
-            .foregroundStyle(RPGPalette.gold)
+            .font(appearance.font(.title3))
+            .foregroundStyle(appearance.ink)
             .padding(.horizontal, 20)
             .padding(.vertical, 8)
-            .background(RPGWindowBackground(opacity: 0.95))
+            .background {
+                if appearance == .rpgWood {
+                    RPGWoodBoardBackground(opacity: 0.95)
+                } else {
+                    RPGWindowBackground(opacity: 0.95)
+                }
+            }
             .shadow(color: .black.opacity(0.35), radius: 4, y: 2)
             .accessibilityHidden(true)
     }

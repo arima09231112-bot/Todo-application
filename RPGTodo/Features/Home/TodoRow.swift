@@ -15,7 +15,7 @@ struct TodoRow: View {
             Button(action: onToggle) {
                 Image(systemName: todo.isCompleted ? "checkmark.circle.fill" : "circle")
                     .font(.title2.weight(.medium))
-                    .foregroundStyle(todo.isCompleted ? appearance.accent : Color.primary.opacity(0.6))
+                    .foregroundStyle(todo.isCompleted ? appearance.cardAccent : appearance.ink.opacity(0.6))
                     .contentTransition(.symbolEffect(.replace))
             }
             .buttonStyle(.plain)
@@ -25,7 +25,7 @@ struct TodoRow: View {
                 Text(todo.title)
                     .font(appearance.font(.body))
                     .strikethrough(todo.isCompleted)
-                    .foregroundStyle(todo.isCompleted ? Color.secondary : Color.primary)
+                    .foregroundStyle(todo.isCompleted ? appearance.inkSecondary : appearance.ink)
                     .lineLimit(2)
                 if todo.isRecurring {
                     Image(systemName: "repeat")

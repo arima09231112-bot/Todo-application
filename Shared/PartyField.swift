@@ -160,19 +160,22 @@ struct PartyField: View {
         return VStack(alignment: .leading, spacing: 2) {
             Text(character.name)
                 .font(appearance.font(.caption, weight: .bold))
-                .foregroundStyle(appearance == .rpg ? RPGPalette.gold : Color.blue)
+                .foregroundStyle(appearance.cardAccent)
             Text(character.quote.isEmpty ? "……" : character.quote)
                 .font(appearance.font(.subheadline))
-                .foregroundStyle(appearance == .rpg ? Color.white : Color.primary)
+                .foregroundStyle(appearance.ink)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(.horizontal, appearance == .rpg ? 14 : 12)
-        .padding(.vertical, appearance == .rpg ? 11 : 8)
+        .padding(.horizontal, appearance.isRPG ? 14 : 12)
+        .padding(.vertical, appearance.isRPG ? 11 : 8)
         .frame(width: width, alignment: .leading)
         .background {
-            if appearance == .rpg {
+            switch appearance {
+            case .rpg:
                 RPGWindowBackground(opacity: 0.95)
-            } else {
+            case .rpgWood:
+                RPGWoodBoardBackground(opacity: 0.95)
+            case .simple:
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .fill(.regularMaterial)
                     .shadow(color: .black.opacity(0.2), radius: 4, y: 2)

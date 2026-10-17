@@ -9,12 +9,12 @@ struct ProgressGauge: View {
     var body: some View {
         ZStack {
             Circle()
-                .fill(appearance == .rpg ? RPGPalette.window.opacity(0.85) : Color.black.opacity(0.35))
+                .fill(appearance.gaugeDisc)
             Circle()
                 .stroke(Color.white.opacity(0.25), lineWidth: 10)
             Circle()
                 .trim(from: 0, to: CGFloat(percent ?? 0) / 100)
-                .stroke(appearance.accent, style: StrokeStyle(lineWidth: 10, lineCap: appearance == .rpg ? .butt : .round))
+                .stroke(appearance.accent, style: StrokeStyle(lineWidth: 10, lineCap: appearance.isRPG ? .butt : .round))
                 .rotationEffect(.degrees(-90))
             Text(percent.map { "\($0)%" } ?? "–")
                 .font(appearance.font(.title2, weight: .bold))

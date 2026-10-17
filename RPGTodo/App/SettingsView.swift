@@ -42,7 +42,7 @@ struct SettingsView: View {
                 } header: {
                     Text("見た目")
                 } footer: {
-                    Text("RPG にすると、ホームとウィジェットがドット風の文字と RPG のウィンドウ風の画面になります。")
+                    Text("RPG にすると、ホームとウィジェットがドット風の文字になります。青は紺色のウィンドウ、木は木の掲示板の見た目です。")
                 }
                 Section {
                     Toggle("カレンダーと連携する", isOn: Binding(

@@ -137,8 +137,6 @@ struct HomeView: View {
                     .font(appearance.font(.subheadline, weight: .semibold))
                 Text("今日の冒険")
                     .font(appearance.font(.largeTitle, weight: .bold))
-                Text("やることをこなして、仲間と一緒に進もう。")
-                    .font(appearance.font(.footnote, weight: .medium))
             }
             Spacer(minLength: 0)
             VStack(spacing: 6) {
@@ -156,7 +154,7 @@ struct HomeView: View {
     private var calendarCard: some View {
         Button(action: onOpenCalendar) {
             HStack(spacing: 8) {
-                Image(systemName: "calendar").foregroundStyle(appearance.accent)
+                Image(systemName: "calendar").foregroundStyle(appearance.cardAccent)
                 VStack(alignment: .leading, spacing: 1) {
                     Text("カレンダーからの予定").font(appearance.font(.caption, weight: .bold))
                     Text(calendarCardText).font(appearance.font(.caption)).foregroundStyle(.secondary).lineLimit(1)
@@ -164,8 +162,8 @@ struct HomeView: View {
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary)
             }
-            .padding(.horizontal, appearance == .rpg ? 16 : 12)
-            .padding(.vertical, appearance == .rpg ? 12 : 8)
+            .padding(.horizontal, appearance.isRPG ? 16 : 12)
+            .padding(.vertical, appearance.isRPG ? 12 : 8)
             .themedCard(appearance, cornerRadius: 14)
         }
         .buttonStyle(.plain)
@@ -181,13 +179,13 @@ struct HomeView: View {
     private var taskCard: some View {
         VStack(spacing: 0) {
             HStack {
-                Text(appearance == .rpg ? "▶ 今日のクエスト" : "今日のクエスト")
+                Text("今日のクエスト")
                     .font(appearance.font(.headline))
                 Spacer()
                 listMenu
             }
             .padding(.horizontal, 16)
-            .padding(.top, appearance == .rpg ? 16 : 12)
+            .padding(.top, appearance.isRPG ? 16 : 12)
 
             if visibleTodos.isEmpty {
                 Text(emptyMessage)
@@ -204,7 +202,7 @@ struct HomeView: View {
                             onEdit: { editor = .edit(todo) }
                         )
                         .listRowBackground(Color.clear)
-                        .listRowSeparatorTint(appearance == .rpg ? Color.white.opacity(0.3) : nil)
+                        .listRowSeparatorTint(appearance.isRPG ? appearance.ink.opacity(0.3) : nil)
                         .swipeActions(edge: .trailing, allowsFullSwipe: !todo.isRecurring) {
                             Button(role: .destructive) { requestDelete(todo) } label: {
                                 Label("削除", systemImage: "trash")
@@ -252,16 +250,29 @@ struct HomeView: View {
             .buttonStyle(.borderedProminent)
         case .rpg:
             Button { editor = .new } label: {
-                Text("＋ 新しいクエストを追加")
-                    .font(appearance.font(.headline))
+                addButtonLabel
                     .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
                     .background(RPGWindowBackground(fill: RPGPalette.button, cornerRadius: 10, opacity: 1))
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+        case .rpgWood:
+            Button { editor = .new } label: {
+                addButtonLabel
+                    .foregroundStyle(RPGPalette.woodPanel)
+                    .background(RPGWoodButtonBackground(cornerRadius: 10))
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
         }
+    }
+
+    /// RPG（青・木）のボタンの中身。
+    private var addButtonLabel: some View {
+        Text("＋ 新しいクエストを追加")
+            .font(appearance.font(.headline))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
     }
 
     private var listMenu: some View {
@@ -382,7 +393,7 @@ struct HomeView: View {
         TodoService.toggle(todo, in: context)
         guard completing else { return }
         hopCount += 1
-        if appearance == .rpg { playQuestClear() }
+        if appearance.isRPG { playQuestClear() }
     }
 
     private func requestDelete(_ todo: TodoItem) {
