@@ -16,3 +16,41 @@ extension View {
             }
     }
 }
+
+extension View {
+    /// 入力画面向け。冒険の背景をすりガラス越しに見せる（絵はぼかして色だけ残す）。
+    /// 背景の細かい模様が文字に重ならないので、見出しやプレースホルダーが読みやすい。
+    /// 行にも `frostedRow()` を付けると、全体がガラスの板のような見た目になる。
+    func frostedScreenBackground() -> some View {
+        scrollContentBackground(.hidden)
+            .background {
+                AdventureBackground()
+                    .overlay {
+                        Rectangle()
+                            .fill(.regularMaterial)
+                            .ignoresSafeArea()
+                    }
+            }
+    }
+
+    /// すりガラスの背景の上に置く行。標準の不透明な行の代わりに、明るめのガラス板にする。
+    /// RPG の見た目では、行の文字色（白・こげ茶）が読めるよう、ホームのカードと同じ色をガラスに重ねる。
+    func frostedRow(_ appearance: AppearanceStyle = .simple) -> some View {
+        listRowBackground(FrostedRowBackground(appearance: appearance))
+    }
+}
+
+private struct FrostedRowBackground: View {
+    let appearance: AppearanceStyle
+
+    var body: some View {
+        ZStack {
+            Rectangle().fill(.thinMaterial)
+            switch appearance {
+            case .simple: EmptyView()
+            case .rpg: RPGPalette.window.opacity(0.8)
+            case .rpgWood: RPGPalette.woodPanel.opacity(0.9)
+            }
+        }
+    }
+}

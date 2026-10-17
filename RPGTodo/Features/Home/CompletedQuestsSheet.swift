@@ -8,7 +8,6 @@ struct CompletedQuestsSheet: View {
 
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.appearance) private var appearance
     @Query(sort: \TodoItem.createdAt) private var allTodos: [TodoItem]
 
     private var completed: [TodoItem] {
@@ -28,10 +27,13 @@ struct CompletedQuestsSheet: View {
                             onToggle: { withAnimation { TodoService.toggle(todo, in: context) } },
                             onEdit: {}
                         )
+                        .frostedRow()
                     }
+                    // 追加・編集画面と同じ見た目にそろえる（すりガラスの行に、標準の文字色とフォント）
+                    .environment(\.appearance, .simple)
                 }
             }
-            .adventureScreenBackground()
+            .frostedScreenBackground()
             .navigationTitle("完了したクエスト")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
