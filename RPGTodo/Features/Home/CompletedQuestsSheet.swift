@@ -28,10 +28,11 @@ struct CompletedQuestsSheet: View {
                             onToggle: { withAnimation { TodoService.toggle(todo, in: context) } },
                             onEdit: {}
                         )
+                        .frostedRow(appearance)
                     }
                 }
             }
-            .adventureScreenBackground()
+            .frostedScreenBackground()
             .navigationTitle("完了したクエスト")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

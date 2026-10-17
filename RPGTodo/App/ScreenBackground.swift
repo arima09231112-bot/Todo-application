@@ -34,7 +34,23 @@ extension View {
     }
 
     /// すりガラスの背景の上に置く行。標準の不透明な行の代わりに、明るめのガラス板にする。
-    func frostedRow() -> some View {
-        listRowBackground(Rectangle().fill(.thinMaterial))
+    /// RPG の見た目では、行の文字色（白・こげ茶）が読めるよう、ホームのカードと同じ色をガラスに重ねる。
+    func frostedRow(_ appearance: AppearanceStyle = .simple) -> some View {
+        listRowBackground(FrostedRowBackground(appearance: appearance))
+    }
+}
+
+private struct FrostedRowBackground: View {
+    let appearance: AppearanceStyle
+
+    var body: some View {
+        ZStack {
+            Rectangle().fill(.thinMaterial)
+            switch appearance {
+            case .simple: EmptyView()
+            case .rpg: RPGPalette.window.opacity(0.8)
+            case .rpgWood: RPGPalette.woodPanel.opacity(0.9)
+            }
+        }
     }
 }
