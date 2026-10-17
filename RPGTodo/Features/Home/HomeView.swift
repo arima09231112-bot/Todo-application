@@ -28,10 +28,11 @@ struct HomeView: View {
     @Query(sort: \TodoItem.createdAt) private var allTodos: [TodoItem]
     @Query private var progresses: [DailyProgress]
     @AppStorage(SettingsKey.hero, store: SharedContainer.defaults) private var heroRaw = CharacterCatalog.defaultHeroID.rawValue
-    @AppStorage("home.hideCompleted") private var hideCompleted = false
     @State private var categoryFilter: TodoCategory?
     @State private var editor: EditorTarget?
     @State private var showCarryOver = false
+    @State private var showCompleted = false
+    @State private var showShare = false
     @State private var showEncyclopedia = false
     @State private var pendingDelete: TodoItem?
     // 加入演出（4.3.2）。表示中の仲間の人数は、達成率の人数とは別に持ち、演出の順番で増やす。
@@ -75,10 +76,11 @@ struct HomeView: View {
         )
     }
 
-    /// 表示する行。絞り込みは表示だけに効かせ、達成率の計算には影響させない。
+    /// 表示する行（未完了だけ。完了したクエストは「完了したクエスト」から見る）。
+    /// 絞り込みは表示だけに効かせ、達成率の計算には影響させない。
     private var visibleTodos: [TodoItem] {
         let filtered = todayTodos.filter { todo in
-            (!hideCompleted || !todo.isCompleted) && (categoryFilter == nil || todo.category == categoryFilter)
+            !todo.isCompleted && (categoryFilter == nil || todo.category == categoryFilter)
         }
         return TodoOrdering.sorted(filtered, minutes: { $0.timeMinutes }, createdAt: { $0.createdAt })
     }
@@ -118,6 +120,12 @@ struct HomeView: View {
         }
         .sheet(isPresented: $showCarryOver) {
             CarryOverSheet(today: today)
+        }
+        .sheet(isPresented: $showCompleted) {
+            CompletedQuestsSheet(today: today)
+        }
+        .sheet(isPresented: $showShare) {
+            PartyShareSheet(date: today)
         }
         .sheet(isPresented: $showEncyclopedia) {
             EncyclopediaView(today: today)
@@ -182,6 +190,7 @@ struct HomeView: View {
                 Text("今日のクエスト")
                     .font(appearance.font(.headline))
                 Spacer()
+                completedButton
                 listMenu
             }
             .padding(.horizontal, 16)
@@ -275,9 +284,26 @@ struct HomeView: View {
             .padding(.vertical, 14)
     }
 
+    /// 「完了したクエスト」を開くボタン（「…」の左）。チェックの横に今日の完了数を出す。
+    private var completedButton: some View {
+        Button { showCompleted = true } label: {
+            HStack(spacing: 3) {
+                Image(systemName: "checkmark.circle")
+                Text("\(completedCount)")
+                    .font(appearance.font(.subheadline, weight: .semibold))
+                    .monospacedDigit()
+            }
+            .padding(8)
+            .contentShape(Rectangle())
+        }
+        .accessibilityLabel("完了したクエスト \(completedCount)件")
+    }
+
     private var listMenu: some View {
         Menu {
-            Toggle("完了済みを隠す", isOn: $hideCompleted)
+            Button { showShare = true } label: {
+                Label("今日のパーティをシェア", systemImage: "square.and.arrow.up")
+            }
             Button { showCarryOver = true } label: {
                 Label("未完了のクエストを見る", systemImage: "arrow.uturn.forward")
             }
@@ -385,12 +411,14 @@ struct HomeView: View {
 
     private var emptyMessage: String {
         if todayTodos.isEmpty { return "クエストを追加して、冒険をはじめよう。" }
+        if completedCount == todayTodos.count { return "今日のクエストはすべて達成！" }
         return "条件に合うクエストはありません。"
     }
 
     private func toggle(_ todo: TodoItem) {
         let completing = !todo.isCompleted
-        TodoService.toggle(todo, in: context)
+        // 完了した行は一覧から消えるので、すっと消えるようにアニメーションを付ける
+        withAnimation { TodoService.toggle(todo, in: context) }
         guard completing else { return }
         hopCount += 1
         if appearance.isRPG { playQuestClear() }

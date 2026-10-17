@@ -10,19 +10,32 @@ enum CalendarSuggestionService {
         return try? context.fetch(descriptor).first
     }
 
-    /// 候補を Todo にする。すでに採用済みなら何もしない。予定の開始日の Todo として作る。
-    static func adopt(_ event: CalendarEvent, in context: ModelContext) {
+    /// 候補を Todo にする。すでに採用済みなら何もしない。
+    ///
+    /// - 今日の予定: 予定の日に「準備」の Todo を、開始の30分前で作る。
+    /// - 明日以降の予定（前日に採用したとき）: 今日に「準備」の Todo（時刻なし）を、予定の日に予定そのものの Todo（開始時刻）を作る。
+    static func adopt(_ event: CalendarEvent, today: LocalDate = LocalDate(.now), in context: ModelContext) {
         let existing = record(for: event.key, in: context)
         guard existing?.status != .adopted else { return }
 
-        let todo = TodoItem(
-            title: CalendarSuggestion.title(forEventTitle: event.title),
-            date: LocalDate(event.start),
-            timeMinutes: event.isAllDay ? nil : suggestedMinutes(for: event),
-            category: .work
-        )
-        todo.calendarEventKey = event.key
-        context.insert(todo)
+        let eventDay = LocalDate(event.start)
+        let prepTitle = CalendarSuggestion.title(forEventTitle: event.title)
+        if eventDay > today {
+            insertTodo(prepTitle, date: today, timeMinutes: nil, key: event.key, in: context)
+            insertTodo(
+                String(event.title.trimmingCharacters(in: .whitespacesAndNewlines).prefix(100)),
+                date: eventDay,
+                timeMinutes: event.isAllDay ? nil : startMinutes(for: event),
+                key: event.key,
+                in: context
+            )
+        } else {
+            insertTodo(
+                prepTitle, date: eventDay,
+                timeMinutes: event.isAllDay ? nil : suggestedMinutes(for: event),
+                key: event.key, in: context
+            )
+        }
 
         if let existing {
             existing.status = .adopted
@@ -58,9 +71,19 @@ enum CalendarSuggestionService {
         commit(context)
     }
 
-    static func suggestedMinutes(for event: CalendarEvent) -> Int {
+    private static func insertTodo(_ title: String, date: LocalDate, timeMinutes: Int?, key: String, in context: ModelContext) {
+        let todo = TodoItem(title: title, date: date, timeMinutes: timeMinutes, category: .work)
+        todo.calendarEventKey = key
+        context.insert(todo)
+    }
+
+    static func startMinutes(for event: CalendarEvent) -> Int {
         let parts = Calendar.current.dateComponents([.hour, .minute], from: event.start)
-        return CalendarSuggestion.suggestedMinutes(eventStartMinutes: (parts.hour ?? 0) * 60 + (parts.minute ?? 0))
+        return (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
+    }
+
+    static func suggestedMinutes(for event: CalendarEvent) -> Int {
+        CalendarSuggestion.suggestedMinutes(eventStartMinutes: startMinutes(for: event))
     }
 
     private static func commit(_ context: ModelContext) {
