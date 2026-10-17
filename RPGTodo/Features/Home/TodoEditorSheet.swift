@@ -29,6 +29,7 @@ struct TodoEditorSheet: View {
                         .submitLabel(.done)
                         .onSubmit(save)
                 }
+                .frostedRow()
                 Section {
                     DatePicker("対象日", selection: $draft.date, displayedComponents: .date)
                     Toggle("時刻", isOn: $draft.hasTime)
@@ -41,6 +42,7 @@ struct TodoEditorSheet: View {
                         }
                     }
                 }
+                .frostedRow()
                 Section("繰り返し") {
                     Picker("繰り返し", selection: $draft.repeatKind) {
                         ForEach(RepeatKind.allCases) { kind in
@@ -51,6 +53,7 @@ struct TodoEditorSheet: View {
                         weekdayPicker
                     }
                 }
+                .frostedRow()
                 if let todo = editingTodo {
                     Section {
                         Button("削除", role: .destructive) { requestDelete(todo) }
@@ -60,9 +63,10 @@ struct TodoEditorSheet: View {
                                 Button("キャンセル", role: .cancel) {}
                             }
                     }
+                    .frostedRow()
                 }
             }
-            .adventureScreenBackground()
+            .frostedScreenBackground()
             .navigationTitle(editingTodo == nil ? "新しいクエスト" : "クエストを編集")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

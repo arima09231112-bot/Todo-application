@@ -16,3 +16,25 @@ extension View {
             }
     }
 }
+
+extension View {
+    /// 入力画面向け。冒険の背景をすりガラス越しに見せる（絵はぼかして色だけ残す）。
+    /// 背景の細かい模様が文字に重ならないので、見出しやプレースホルダーが読みやすい。
+    /// 行にも `frostedRow()` を付けると、全体がガラスの板のような見た目になる。
+    func frostedScreenBackground() -> some View {
+        scrollContentBackground(.hidden)
+            .background {
+                AdventureBackground()
+                    .overlay {
+                        Rectangle()
+                            .fill(.regularMaterial)
+                            .ignoresSafeArea()
+                    }
+            }
+    }
+
+    /// すりガラスの背景の上に置く行。標準の不透明な行の代わりに、明るめのガラス板にする。
+    func frostedRow() -> some View {
+        listRowBackground(Rectangle().fill(.thinMaterial))
+    }
+}
