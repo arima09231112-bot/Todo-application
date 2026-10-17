@@ -15,7 +15,7 @@ struct TodoRow: View {
             Button(action: onToggle) {
                 Image(systemName: todo.isCompleted ? "checkmark.circle.fill" : "circle")
                     .font(.title2.weight(.medium))
-                    .foregroundStyle(todo.isCompleted ? appearance.cardAccent : appearance.ink.opacity(0.6))
+                    .foregroundStyle(todo.isCompleted ? AnyShapeStyle(appearance.cardAccent) : AnyShapeStyle(appearance.ink.opacity(0.6)))
                     .contentTransition(.symbolEffect(.replace))
             }
             .buttonStyle(.plain)

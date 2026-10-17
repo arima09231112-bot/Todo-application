@@ -205,7 +205,7 @@ private struct TodoLine: View {
             Button(intent: ToggleTodoIntent(todoID: todo.id.uuidString)) {
                 Image(systemName: todo.isCompleted ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 17))
-                    .foregroundStyle(todo.isCompleted ? appearance.cardAccent : appearance.inkSecondary)
+                    .foregroundStyle(todo.isCompleted ? AnyShapeStyle(appearance.cardAccent) : appearance.inkSecondary)
             }
             .buttonStyle(.plain)
 

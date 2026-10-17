@@ -48,20 +48,31 @@ enum AppearanceStyle: String, CaseIterable, Identifiable, Sendable {
     }
 
     /// カードの中の文字色。
-    var ink: Color {
+    /// シンプルは Color ではなく階層スタイル（.primary）にする。Color.secondary に取り消し線を付けると、
+    /// 半透明のカードの上で文字が消えることがあるため。
+    var ink: AnyShapeStyle {
         switch self {
-        case .simple: .primary
-        case .rpg: .white
-        case .rpgWood: RPGPalette.ink
+        case .simple: AnyShapeStyle(.primary)
+        case .rpg: AnyShapeStyle(Color.white)
+        case .rpgWood: AnyShapeStyle(RPGPalette.ink)
         }
     }
 
     /// カードの中の、控えめな文字色（補足や完了済みの文字）。
-    var inkSecondary: Color {
+    var inkSecondary: AnyShapeStyle {
         switch self {
-        case .simple: .secondary
-        case .rpg: Color.white.opacity(0.7)
-        case .rpgWood: RPGPalette.ink.opacity(0.72)
+        case .simple: AnyShapeStyle(.secondary)
+        case .rpg: AnyShapeStyle(Color.white.opacity(0.7))
+        case .rpgWood: AnyShapeStyle(RPGPalette.ink.opacity(0.72))
+        }
+    }
+
+    /// RPG のカードの中の区切り線の色（シンプルはシステムの既定）。
+    var separatorTint: Color? {
+        switch self {
+        case .simple: nil
+        case .rpg: Color.white.opacity(0.3)
+        case .rpgWood: RPGPalette.ink.opacity(0.3)
         }
     }
 

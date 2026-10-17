@@ -7,7 +7,7 @@ struct AllAssembledBanner: View {
     var body: some View {
         Text("全員集合！")
             .font(appearance.font(.title, weight: .heavy))
-            .foregroundStyle(appearance.isRPG ? appearance.ink : .white)
+            .foregroundStyle(appearance.isRPG ? appearance.ink : AnyShapeStyle(Color.white))
             .padding(.horizontal, 28)
             .padding(.vertical, 10)
             .background {

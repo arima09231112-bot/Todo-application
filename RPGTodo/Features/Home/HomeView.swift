@@ -202,7 +202,7 @@ struct HomeView: View {
                             onEdit: { editor = .edit(todo) }
                         )
                         .listRowBackground(Color.clear)
-                        .listRowSeparatorTint(appearance.isRPG ? appearance.ink.opacity(0.3) : nil)
+                        .listRowSeparatorTint(appearance.separatorTint)
                         .swipeActions(edge: .trailing, allowsFullSwipe: !todo.isRecurring) {
                             Button(role: .destructive) { requestDelete(todo) } label: {
                                 Label("削除", systemImage: "trash")
