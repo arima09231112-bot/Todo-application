@@ -22,7 +22,7 @@ struct CalendarView: View {
                 if !calendar.isEnabled {
                     notice(
                         "カレンダーと連携する",
-                        "今日・明日の予定からTodo候補を作ります。予定は読み取るだけで、変更はしません。",
+                        "今日・明日の予定からクエスト候補を作ります。予定は読み取るだけで、変更はしません。",
                         button: "連携をオンにする"
                     ) { Task { await calendar.enable() } }
                 } else if calendar.status == .notDetermined {
@@ -34,7 +34,7 @@ struct CalendarView: View {
                 } else if calendar.isDenied {
                     notice(
                         "カレンダーにアクセスできません",
-                        "iPhone の「設定」→「RPG Todo」→「カレンダー」で、フルアクセスを許可してください。",
+                        "iPhone の「設定」→「Daily Quest」→「カレンダー」で、フルアクセスを許可してください。",
                         button: "設定アプリを開く"
                     ) {
                         if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
@@ -43,6 +43,7 @@ struct CalendarView: View {
                     list
                 }
             }
+            .adventureScreenBackground()
             .navigationTitle("カレンダー")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

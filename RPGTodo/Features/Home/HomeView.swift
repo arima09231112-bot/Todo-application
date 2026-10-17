@@ -15,7 +15,7 @@ enum EditorTarget: Identifiable {
     }
 }
 
-/// ホーム画面（今日の冒険）: 日付・達成率・タスク一覧・冒険フィールド（勇者と、日替わりの仲間）。
+/// ホーム画面（今日の冒険）: 日付・達成率・クエスト一覧・冒険フィールド（勇者と、日替わりの仲間）。
 struct HomeView: View {
     let today: LocalDate
     /// 「カレンダーからの予定」カードをタップしたとき（カレンダータブへ移る）。
@@ -23,6 +23,8 @@ struct HomeView: View {
 
     @Environment(\.modelContext) private var context
     @Environment(CalendarStore.self) private var calendar
+    @Environment(\.appearance) private var appearance
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query(sort: \TodoItem.createdAt) private var allTodos: [TodoItem]
     @Query private var progresses: [DailyProgress]
     @AppStorage(SettingsKey.hero, store: SharedContainer.defaults) private var heroRaw = CharacterCatalog.defaultHeroID.rawValue
@@ -38,6 +40,9 @@ struct HomeView: View {
     @State private var celebrationCount = 0
     @State private var starShowerID: UUID?
     @State private var showAssembledBanner = false
+    @State private var questClearID: UUID?
+    /// クエストを完了するたびに増やす（パーティが小さく跳ねる）。
+    @State private var hopCount = 0
 
     // MARK: 集計
 
@@ -90,12 +95,9 @@ struct HomeView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 8)
-                PartyField(hero: hero, companions: shownCompanions)
+                // キャラをタップすると、ジャンプしてひとこと（図鑑は左上のボタンから）
+                PartyField(hero: hero, companions: shownCompanions, isLively: true, hopTrigger: hopCount)
                     .padding(.bottom, 4)
-                    .contentShape(Rectangle())
-                    .onTapGesture { showEncyclopedia = true }
-                    .accessibilityAddTraits(.isButton)
-                    .accessibilityHint("キャラクター図鑑を開きます")
             }
             .overlay { effects }
             .background(AdventureBackground())
@@ -106,7 +108,7 @@ struct HomeView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { editor = .new } label: { Image(systemName: "plus") }
-                        .accessibilityLabel("タスクを追加")
+                        .accessibilityLabel("クエストを追加")
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -132,17 +134,15 @@ struct HomeView: View {
         HStack(alignment: .center, spacing: 16) {
             VStack(alignment: .leading, spacing: 6) {
                 Text(Self.dateText(today))
-                    .font(.subheadline.weight(.semibold))
+                    .font(appearance.font(.subheadline, weight: .semibold))
                 Text("今日の冒険")
-                    .font(.largeTitle.bold())
-                Text("やることをこなして、仲間と一緒に進もう。")
-                    .font(.footnote.weight(.medium))
+                    .font(appearance.font(.largeTitle, weight: .bold))
             }
             Spacer(minLength: 0)
             VStack(spacing: 6) {
                 ProgressGauge(percent: percent)
-                Text(percent == nil ? "今日の冒険は準備中" : "\(completedCount) / \(todayTodos.count) タスク完了")
-                    .font(.caption.weight(.semibold))
+                Text(percent == nil ? "今日の冒険は準備中" : "\(completedCount) / \(todayTodos.count) クエスト達成")
+                    .font(appearance.font(.caption, weight: .semibold))
             }
         }
         // 背景のイラストの上でも読めるよう、白い文字に影を付ける
@@ -154,17 +154,17 @@ struct HomeView: View {
     private var calendarCard: some View {
         Button(action: onOpenCalendar) {
             HStack(spacing: 8) {
-                Image(systemName: "calendar").foregroundStyle(.blue)
+                Image(systemName: "calendar").foregroundStyle(appearance.cardAccent)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("カレンダーからの予定").font(.caption.bold())
-                    Text(calendarCardText).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    Text("カレンダーからの予定").font(appearance.font(.caption, weight: .bold))
+                    Text(calendarCardText).font(appearance.font(.caption)).foregroundStyle(.secondary).lineLimit(1)
                 }
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .padding(.horizontal, appearance.isRPG ? 16 : 12)
+            .padding(.vertical, appearance.isRPG ? 12 : 8)
+            .themedCard(appearance, cornerRadius: 14)
         }
         .buttonStyle(.plain)
     }
@@ -179,16 +179,17 @@ struct HomeView: View {
     private var taskCard: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("今日のタスク").font(.headline)
+                Text("今日のクエスト")
+                    .font(appearance.font(.headline))
                 Spacer()
                 listMenu
             }
             .padding(.horizontal, 16)
-            .padding(.top, 12)
+            .padding(.top, appearance.isRPG ? 16 : 12)
 
             if visibleTodos.isEmpty {
                 Text(emptyMessage)
-                    .font(.subheadline)
+                    .font(appearance.font(.subheadline))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding()
@@ -197,10 +198,11 @@ struct HomeView: View {
                     ForEach(visibleTodos) { todo in
                         TodoRow(
                             todo: todo,
-                            onToggle: { TodoService.toggle(todo, in: context) },
+                            onToggle: { toggle(todo) },
                             onEdit: { editor = .edit(todo) }
                         )
                         .listRowBackground(Color.clear)
+                        .listRowSeparatorTint(appearance.separatorTint)
                         .swipeActions(edge: .trailing, allowsFullSwipe: !todo.isRecurring) {
                             Button(role: .destructive) { requestDelete(todo) } label: {
                                 Label("削除", systemImage: "trash")
@@ -212,20 +214,14 @@ struct HomeView: View {
                 .scrollContentBackground(.hidden)
             }
 
-            Button { editor = .new } label: {
-                Label("新しいタスクを追加", systemImage: "plus")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-            }
-            .buttonStyle(.borderedProminent)
-            .padding(16)
+            addButton
+                .padding(16)
         }
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
+        .themedCard(appearance)
         .shadow(color: .black.opacity(0.12), radius: 10, y: 3)
         .frame(maxHeight: .infinity)
         .confirmationDialog(
-            "繰り返しのタスクです",
+            "繰り返しのクエストです",
             isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),
             titleVisibility: .visible,
             presenting: pendingDelete
@@ -240,11 +236,50 @@ struct HomeView: View {
         }
     }
 
+    /// 「新しいクエストを追加」ボタン。RPG はウィンドウ風のボタンにする。
+    @ViewBuilder
+    private var addButton: some View {
+        switch appearance {
+        case .simple:
+            Button { editor = .new } label: {
+                Label("新しいクエストを追加", systemImage: "plus")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+            }
+            .buttonStyle(.borderedProminent)
+        case .rpg:
+            Button { editor = .new } label: {
+                addButtonLabel
+                    .foregroundStyle(.white)
+                    .background(RPGWindowBackground(fill: RPGPalette.button, cornerRadius: 10, opacity: 1))
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        case .rpgWood:
+            Button { editor = .new } label: {
+                addButtonLabel
+                    .foregroundStyle(RPGPalette.woodPanel)
+                    .background(RPGWoodButtonBackground(cornerRadius: 10))
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    /// RPG（青・木）のボタンの中身。
+    private var addButtonLabel: some View {
+        Text("＋ 新しいクエストを追加")
+            .font(appearance.font(.headline))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+    }
+
     private var listMenu: some View {
         Menu {
             Toggle("完了済みを隠す", isOn: $hideCompleted)
             Button { showCarryOver = true } label: {
-                Label("未完了のタスクを見る", systemImage: "arrow.uturn.forward")
+                Label("未完了のクエストを見る", systemImage: "arrow.uturn.forward")
             }
             Picker("カテゴリで絞り込み", selection: $categoryFilter) {
                 Text("すべて").tag(TodoCategory?.none)
@@ -267,6 +302,11 @@ struct HomeView: View {
                 StarShowerView()
                     .id(id)
                     .transition(.opacity)
+            }
+            if questClearID != nil {
+                QuestClearBanner()
+                    .frame(maxHeight: .infinity, alignment: .center)
+                    .transition(reduceMotion ? .opacity : .scale(scale: 0.8).combined(with: .opacity))
             }
             if showAssembledBanner {
                 AllAssembledBanner()
@@ -311,6 +351,16 @@ struct HomeView: View {
         }
     }
 
+    /// RPG の見た目で、完了にしたときだけ「クエスト達成！」を一瞬出す。
+    private func playQuestClear() {
+        let id = UUID()
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { questClearID = id }
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(1.1))
+            if questClearID == id { withAnimation { questClearID = nil } }
+        }
+    }
+
     private func showImmediately(_ count: Int) {
         var transaction = Transaction(animation: nil)
         transaction.disablesAnimations = true
@@ -334,8 +384,16 @@ struct HomeView: View {
     // MARK: 操作
 
     private var emptyMessage: String {
-        if todayTodos.isEmpty { return "タスクを追加して、冒険をはじめよう。" }
-        return "条件に合うタスクはありません。"
+        if todayTodos.isEmpty { return "クエストを追加して、冒険をはじめよう。" }
+        return "条件に合うクエストはありません。"
+    }
+
+    private func toggle(_ todo: TodoItem) {
+        let completing = !todo.isCompleted
+        TodoService.toggle(todo, in: context)
+        guard completing else { return }
+        hopCount += 1
+        if appearance.isRPG { playQuestClear() }
     }
 
     private func requestDelete(_ todo: TodoItem) {

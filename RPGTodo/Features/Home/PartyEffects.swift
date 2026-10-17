@@ -2,16 +2,49 @@ import SwiftUI
 
 /// 100% 到達時の「全員集合！」バナー。
 struct AllAssembledBanner: View {
+    @Environment(\.appearance) private var appearance
+
     var body: some View {
         Text("全員集合！")
-            .font(.title.weight(.heavy))
-            .foregroundStyle(.white)
+            .font(appearance.font(.title, weight: .heavy))
+            .foregroundStyle(appearance.isRPG ? appearance.ink : AnyShapeStyle(Color.white))
             .padding(.horizontal, 28)
             .padding(.vertical, 10)
-            .background(Capsule().fill(Color.blue.gradient))
-            .overlay(Capsule().stroke(.white.opacity(0.8), lineWidth: 2))
+            .background {
+                switch appearance {
+                case .rpg:
+                    RPGWindowBackground(opacity: 0.95)
+                case .rpgWood:
+                    RPGWoodBoardBackground(opacity: 0.95)
+                case .simple:
+                    Capsule().fill(Color.blue.gradient)
+                        .overlay(Capsule().stroke(.white.opacity(0.8), lineWidth: 2))
+                }
+            }
             .shadow(color: .black.opacity(0.35), radius: 6, y: 3)
             .accessibilityAddTraits(.isStaticText)
+    }
+}
+
+/// RPG の見た目で、クエストを完了したときに一瞬出る「クエスト達成！」。
+struct QuestClearBanner: View {
+    @Environment(\.appearance) private var appearance
+
+    var body: some View {
+        Text("クエスト達成！")
+            .font(appearance.font(.title3))
+            .foregroundStyle(appearance.ink)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 8)
+            .background {
+                if appearance == .rpgWood {
+                    RPGWoodBoardBackground(opacity: 0.95)
+                } else {
+                    RPGWindowBackground(opacity: 0.95)
+                }
+            }
+            .shadow(color: .black.opacity(0.35), radius: 4, y: 2)
+            .accessibilityHidden(true)
     }
 }
 

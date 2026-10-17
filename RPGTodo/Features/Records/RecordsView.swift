@@ -39,7 +39,7 @@ struct RecordsView: View {
                 }
                 .padding(16)
             }
-            .background(Color(.systemGroupedBackground))
+            .adventureScreenBackground()
             .navigationTitle("冒険の記録")
             .navigationBarTitleDisplayMode(.inline)
         }
@@ -148,7 +148,7 @@ struct RecordsView: View {
         }
         .buttonStyle(.plain)
         .disabled(isFuture)
-        .accessibilityLabel("\(day.shortText)、\(percent.map { "達成率\($0)%" } ?? "タスクなし")\(hasSuperstar ? "、スーパースター" : "")")
+        .accessibilityLabel("\(day.shortText)、\(percent.map { "達成率\($0)%" } ?? "クエストなし")\(hasSuperstar ? "、スーパースター" : "")")
     }
 
     /// 100% は緑、1〜99% は青の濃淡、0% は淡い青、Todo 0 件はグレー（要件 6.5）。
@@ -175,7 +175,7 @@ struct RecordsView: View {
         HStack(spacing: 12) {
             legendItem(.green, "100%")
             legendItem(Color.blue.opacity(0.5), "1〜99%")
-            legendItem(Color.gray.opacity(0.25), "タスクなし")
+            legendItem(Color.gray.opacity(0.25), "クエストなし")
             Label("スーパースター", systemImage: "star.fill")
                 .labelStyle(.titleAndIcon)
                 .foregroundStyle(.yellow)
@@ -222,7 +222,7 @@ struct DayDetailView: View {
                             .foregroundStyle(percent == 100 ? Color.green : Color.primary)
                         Spacer()
                         VStack(alignment: .trailing, spacing: 2) {
-                            Text(items.isEmpty ? "タスクなし" : "\(completed) / \(items.count) 完了")
+                            Text(items.isEmpty ? "クエストなし" : "\(completed) / \(items.count) 完了")
                             Text("仲間 \(members.count)人").foregroundStyle(.secondary)
                         }
                         .font(.subheadline)
@@ -239,9 +239,9 @@ struct DayDetailView: View {
                     }
                 }
 
-                Section("タスク") {
+                Section("クエスト") {
                     if items.isEmpty {
-                        Text("この日のタスクはありません").foregroundStyle(.secondary)
+                        Text("この日のクエストはありません").foregroundStyle(.secondary)
                     }
                     ForEach(items) { todo in
                         HStack(spacing: 10) {
@@ -260,6 +260,7 @@ struct DayDetailView: View {
                     }
                 }
             }
+            .adventureScreenBackground()
             .navigationTitle(date.shortText)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

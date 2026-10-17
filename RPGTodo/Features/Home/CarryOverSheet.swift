@@ -19,7 +19,7 @@ struct CarryOverSheet: View {
         NavigationStack {
             Group {
                 if pending.isEmpty {
-                    ContentUnavailableView("未完了のタスクはありません", systemImage: "checkmark.seal")
+                    ContentUnavailableView("未完了のクエストはありません", systemImage: "checkmark.seal")
                 } else {
                     List(pending) { todo in
                         HStack {
@@ -38,7 +38,8 @@ struct CarryOverSheet: View {
                     }
                 }
             }
-            .navigationTitle("未完了のタスク")
+            .adventureScreenBackground()
+            .navigationTitle("未完了のクエスト")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {

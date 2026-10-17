@@ -1,21 +1,23 @@
 import SwiftUI
 
-/// 達成率の円形ゲージ（青）。
+/// 達成率の円形ゲージ（シンプルは青、RPG は金色）。
 struct ProgressGauge: View {
     let percent: Int?
+
+    @Environment(\.appearance) private var appearance
 
     var body: some View {
         ZStack {
             Circle()
-                .fill(Color.black.opacity(0.35))
+                .fill(appearance.gaugeDisc)
             Circle()
                 .stroke(Color.white.opacity(0.25), lineWidth: 10)
             Circle()
                 .trim(from: 0, to: CGFloat(percent ?? 0) / 100)
-                .stroke(Color.blue, style: StrokeStyle(lineWidth: 10, lineCap: .round))
+                .stroke(appearance.accent, style: StrokeStyle(lineWidth: 10, lineCap: appearance.isRPG ? .butt : .round))
                 .rotationEffect(.degrees(-90))
             Text(percent.map { "\($0)%" } ?? "–")
-                .font(.title2.bold())
+                .font(appearance.font(.title2, weight: .bold))
                 .monospacedDigit()
         }
         .frame(width: 84, height: 84)
