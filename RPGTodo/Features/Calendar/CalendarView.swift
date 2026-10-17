@@ -78,7 +78,7 @@ struct CalendarView: View {
                 Text("予定はありません").foregroundStyle(.secondary)
             }
             ForEach(events.filter { visible($0) }) { event in
-                EventRow(event: event, status: statusByKey[event.key])
+                EventRow(event: event, status: statusByKey[event.key], today: today)
             }
         } header: {
             HStack {
@@ -86,7 +86,7 @@ struct CalendarView: View {
                 Spacer()
                 if pending.count > 1 {
                     Button("すべて追加") {
-                        for event in pending { CalendarSuggestionService.adopt(event, in: context) }
+                        for event in pending { CalendarSuggestionService.adopt(event, today: today, in: context) }
                     }
                     .font(.caption.bold())
                     .textCase(nil)
@@ -115,8 +115,11 @@ struct CalendarView: View {
 private struct EventRow: View {
     let event: CalendarEvent
     let status: CalendarSuggestionRecord.Status?
+    let today: LocalDate
 
     @Environment(\.modelContext) private var context
+
+    private var isAhead: Bool { LocalDate(event.start) > today }
 
     private var timeText: String {
         event.isAllDay
@@ -132,10 +135,13 @@ private struct EventRow: View {
             }
             HStack {
                 Image(systemName: "arrow.turn.down.right").font(.caption).foregroundStyle(.secondary)
-                Text(CalendarSuggestion.title(forEventTitle: event.title))
+                // 明日の予定は、今日に準備・当日に予定そのものを入れる（`CalendarSuggestionService.adopt`）
+                Text(isAhead
+                    ? "今日: \(CalendarSuggestion.title(forEventTitle: event.title))\n当日: \(event.title)"
+                    : CalendarSuggestion.title(forEventTitle: event.title))
                     .font(.subheadline)
                     .foregroundStyle(status == nil ? Color.primary : Color.secondary)
-                    .lineLimit(2)
+                    .lineLimit(3)
                 Spacer(minLength: 8)
                 actions
             }
@@ -148,7 +154,7 @@ private struct EventRow: View {
         switch status {
         case .none:
             HStack(spacing: 8) {
-                Button("追加") { CalendarSuggestionService.adopt(event, in: context) }
+                Button("追加") { CalendarSuggestionService.adopt(event, today: today, in: context) }
                     .buttonStyle(.borderedProminent)
                 Button("除外") { CalendarSuggestionService.dismiss(event, in: context) }
                     .buttonStyle(.bordered)
