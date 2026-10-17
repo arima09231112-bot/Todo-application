@@ -187,7 +187,12 @@ struct PartyField: View {
         .id(character.id)
     }
 
+    /// 吹き出しを出す。同じキャラをもう一度タップしたら閉じる（約2.8秒たつと自動でも閉じる）。
     private func speak(_ character: CharacterID, index: Int) {
+        if speech?.character == character {
+            withAnimation(.easeOut(duration: 0.2)) { speech = nil }
+            return
+        }
         tapCounts[character, default: 0] += 1
         let next = Speech(character: character, index: index)
         withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) { speech = next }

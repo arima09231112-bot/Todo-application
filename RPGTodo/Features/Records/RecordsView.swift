@@ -201,6 +201,7 @@ struct DayDetailView: View {
     @Query private var progresses: [DailyProgress]
     @Query(sort: \TodoItem.createdAt) private var allTodos: [TodoItem]
     @AppStorage(SettingsKey.hero, store: SharedContainer.defaults) private var heroRaw = CharacterCatalog.defaultHeroID.rawValue
+    @State private var showShare = false
 
     private var progress: DailyProgress? { progresses.first { $0.dateKey == date.dayKey } }
     private var todos: [TodoItem] {
@@ -264,9 +265,16 @@ struct DayDetailView: View {
             .navigationTitle(date.shortText)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { showShare = true } label: { Image(systemName: "square.and.arrow.up") }
+                        .accessibilityLabel("この日のパーティをシェア")
+                }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("閉じる") { dismiss() }
                 }
+            }
+            .sheet(isPresented: $showShare) {
+                PartyShareSheet(date: date)
             }
         }
         .presentationDetents([.medium, .large])
