@@ -77,6 +77,9 @@ struct PartyShareSheet: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     .shadow(color: .black.opacity(0.2), radius: 8, y: 3)
                     .scaleEffect(format == .story ? 0.62 : 0.85)
+                    // 見本はタップしない。背景の絵は枠の外まで（切り取られて見えない部分も）タップを受けてしまい、
+                    // 上の「形」や「クエスト名を載せる」が押せなくなるため、タップを素通りさせる。
+                    .allowsHitTesting(false)
                     .frame(
                         width: format.size.width * (format == .story ? 0.62 : 0.85),
                         height: format.size.height * (format == .story ? 0.62 : 0.85)
